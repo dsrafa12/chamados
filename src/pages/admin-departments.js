@@ -1,0 +1,133 @@
+/**
+ * Admin — Cadastro de Setores (somente directors)
+ */
+import { getCurrentProfile } from '../lib/auth.js';
+import { fetchDepartments, createDepartment, deleteDepartment } from '../lib/api.js';
+import { navigateTo } from '../lib/router.js';
+import { showToast } from '../lib/toast.js';
+
+export async function renderAdminDepartments(container) {
+  let profile = null;
+  let departments = [];
+  let loading = false;
+
+  try {
+    profile = await getCurrentProfile();
+    if (!profile) { navigateTo('/login'); return; }
+    if (profile.role !== 'director') {
+      showToast('Acesso restrito à Diretoria', 'error');
+      navigateTo('/dashboard');
+      return;
+    }
+    departments = await fetchDepartments();
+  } catch {
+    navigateTo('/login');
+    return;
+  }
+
+  function render() {
+    container.innerHTML = `
+      <header class="header">
+        <div class="header-brand">
+          <button class="btn btn-secondary btn-sm" id="backBtn" style="padding:6px 10px;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </button>
+          Gerenciar Setores
+        </div>
+      </header>
+
+      <main class="page" style="max-width:600px;">
+        <!-- Formulário para adicionar -->
+        <div class="card" style="margin-bottom:24px;padding:24px;">
+          <h3 style="margin-bottom:16px;">Adicionar Novo Setor</h3>
+          <form class="admin-add-form" id="addDeptForm">
+            <input type="text" class="input" id="deptName" placeholder="Nome do setor" required />
+            <button type="submit" class="btn btn-primary" ${loading ? 'disabled' : ''}>
+              ${loading ? '...' : 'Adicionar'}
+            </button>
+          </form>
+        </div>
+
+        <!-- Lista de setores -->
+        <h3 style="margin-bottom:12px;">Setores Cadastrados (${departments.length})</h3>
+        <div class="admin-list">
+          ${departments.map(d => `
+            <div class="admin-list-item">
+              <div>
+                <span style="font-weight:600;">${escapeHtml(d.name)}</span>
+                <span style="font-size:0.75rem;color:var(--text-muted);margin-left:8px;">
+                  ${formatDate(d.created_at)}
+                </span>
+              </div>
+              ${d.name !== 'Diretoria' ? `
+                <button class="btn btn-sm btn-danger" data-delete-id="${d.id}" title="Excluir">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              ` : '<span class="badge badge-open">Padrão</span>'}
+            </div>
+          `).join('')}
+        </div>
+      </main>
+    `;
+
+    bindEvents();
+  }
+
+  function bindEvents() {
+    document.getElementById('backBtn')?.addEventListener('click', () => navigateTo('/dashboard'));
+
+    document.getElementById('addDeptForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('deptName').value.trim();
+      if (!name) return;
+
+      loading = true;
+      render();
+
+      try {
+        await createDepartment(name);
+        departments = await fetchDepartments();
+        showToast(`Setor "${name}" criado!`, 'success');
+      } catch (err) {
+        if (err.message?.includes('duplicate') || err.message?.includes('unique')) {
+          showToast('Setor já existe', 'error');
+        } else {
+          showToast(err.message || 'Erro ao criar setor', 'error');
+        }
+      }
+      loading = false;
+      render();
+    });
+
+    document.querySelectorAll('[data-delete-id]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.deleteId;
+        const dept = departments.find(d => d.id === id);
+        if (!confirm(`Tem certeza que deseja excluir o setor "${dept?.name}"?`)) return;
+
+        try {
+          await deleteDepartment(id);
+          departments = await fetchDepartments();
+          showToast('Setor excluído', 'success');
+          render();
+        } catch (err) {
+          showToast('Erro ao excluir (pode haver chamados vinculados)', 'error');
+        }
+      });
+    });
+  }
+
+  render();
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('pt-BR');
+}

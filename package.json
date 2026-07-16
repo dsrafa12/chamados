@@ -1,0 +1,15 @@
+{
+  "name": "chamados",
+  "version": "1.0.0",
+  "description": "Gestão de Chamados Intersetoriais",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.7",
+    "vite": "^8.1.5"
+  }
+}
