@@ -1,10 +1,11 @@
 /**
- * Formulário "Abrir Chamado"
+ * Formulário "Abrir Chamado" integrado à Sidebar
  */
 import { getCurrentProfile } from '../lib/auth.js';
 import { fetchDepartments, createTicket } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
+import { getLayoutTemplate, bindLayoutEvents } from '../lib/layout.js';
 
 export async function renderNewTicket(container) {
   let profile = null;
@@ -21,21 +22,25 @@ export async function renderNewTicket(container) {
     return;
   }
 
-  // Filtra o setor do usuário e o setor destino da lista de visibilidade
   const myDeptName = profile.department?.name || 'Sem setor';
 
   function render() {
-    container.innerHTML = `
-      <header class="header">
-        <div class="header-brand">
-          <button class="btn btn-secondary btn-sm" id="backBtn" style="padding:6px 10px;">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          </button>
-          Novo Chamado
-        </div>
-      </header>
+    // 1. Injeta layout base da sidebar
+    container.innerHTML = getLayoutTemplate(profile, 'tickets');
 
+    // 2. Injeta conteúdo específico na área principal
+    const mainContent = document.getElementById('mainContent');
+    mainContent.innerHTML = `
       <main class="page form-page">
+        <!-- HEADER DO FORMULÁRIO -->
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+          <button class="btn btn-secondary btn-sm" id="backBtn" style="padding:8px 12px;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Voltar
+          </button>
+          <h1>Novo Chamado</h1>
+        </div>
+
         <div class="form-card">
           <div>
             <span class="origin-badge">
@@ -106,10 +111,11 @@ export async function renderNewTicket(container) {
       </main>
     `;
 
-    bindEvents();
+    bindLayoutEvents(profile);
+    bindPageEvents();
   }
 
-  function bindEvents() {
+  function bindPageEvents() {
     // Voltar
     document.getElementById('backBtn')?.addEventListener('click', () => navigateTo('/dashboard'));
 
@@ -150,7 +156,6 @@ export async function renderNewTicket(container) {
       return;
     }
 
-    // Remove o setor destino da visibilidade (já está implícito)
     selectedVisibility.delete(destinationDeptId);
 
     loading = true;

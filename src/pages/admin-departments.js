@@ -1,10 +1,11 @@
 /**
- * Admin — Cadastro de Setores (somente directors)
+ * Admin — Cadastro de Setores (somente super admin ds.rafa@hotmail.com)
  */
 import { getCurrentProfile } from '../lib/auth.js';
 import { fetchDepartments, createDepartment, deleteDepartment } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
+import { getLayoutTemplate, bindLayoutEvents } from '../lib/layout.js';
 
 export async function renderAdminDepartments(container) {
   let profile = null;
@@ -14,8 +15,10 @@ export async function renderAdminDepartments(container) {
   try {
     profile = await getCurrentProfile();
     if (!profile) { navigateTo('/login'); return; }
-    if (profile.role !== 'director') {
-      showToast('Acesso restrito à Diretoria', 'error');
+    
+    // Restrição estrita de super admin
+    if (profile.email !== 'ds.rafa@hotmail.com') {
+      showToast('Acesso restrito ao Super Administrador', 'error');
       navigateTo('/dashboard');
       return;
     }
@@ -26,17 +29,22 @@ export async function renderAdminDepartments(container) {
   }
 
   function render() {
-    container.innerHTML = `
-      <header class="header">
-        <div class="header-brand">
-          <button class="btn btn-secondary btn-sm" id="backBtn" style="padding:6px 10px;">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          </button>
-          Gerenciar Setores
-        </div>
-      </header>
+    // 1. Injeta layout base da sidebar
+    container.innerHTML = getLayoutTemplate(profile, 'departments');
 
-      <main class="page" style="max-width:600px;">
+    // 2. Injeta conteúdo específico na área principal
+    const mainContent = document.getElementById('mainContent');
+    mainContent.innerHTML = `
+      <main class="page" style="max-width:600px; margin: 0 auto;">
+        <div class="page-header">
+          <div>
+            <h1>Gerenciar Setores</h1>
+            <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:2px;">
+              Adicione e remova os setores da empresa
+            </p>
+          </div>
+        </div>
+
         <!-- Formulário para adicionar -->
         <div class="card" style="margin-bottom:24px;padding:24px;">
           <h3 style="margin-bottom:16px;">Adicionar Novo Setor</h3>
@@ -70,12 +78,11 @@ export async function renderAdminDepartments(container) {
       </main>
     `;
 
-    bindEvents();
+    bindLayoutEvents(profile);
+    bindPageEvents();
   }
 
-  function bindEvents() {
-    document.getElementById('backBtn')?.addEventListener('click', () => navigateTo('/dashboard'));
-
+  function bindPageEvents() {
     document.getElementById('addDeptForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('deptName').value.trim();

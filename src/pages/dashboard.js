@@ -1,10 +1,11 @@
 /**
- * Dashboard — Lista de Chamados com filtros
+ * Dashboard — Lista de Chamados com filtros e Sidebar
  */
-import { getCurrentProfile, signOut } from '../lib/auth.js';
+import { getCurrentProfile } from '../lib/auth.js';
 import { fetchTickets, updateTicketStatus, fetchTicketDetail } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
+import { getLayoutTemplate, bindLayoutEvents } from '../lib/layout.js';
 
 const PRIORITY_LABELS = { low: 'Baixa', medium: 'Média', high: 'Alta' };
 const STATUS_LABELS = { open: 'Aberto', in_progress: 'Em Andamento', resolved: 'Resolvido' };
@@ -15,7 +16,6 @@ export async function renderDashboard(container) {
   let filters = { status: '', priority: '', view: '' };
   let loadingTickets = true;
 
-  // Busca o profile do usuário
   try {
     profile = await getCurrentProfile();
     if (!profile) {
@@ -26,6 +26,8 @@ export async function renderDashboard(container) {
     navigateTo('/login');
     return;
   }
+
+  const isSuperAdmin = profile.email === 'ds.rafa@hotmail.com';
 
   async function loadTickets() {
     loadingTickets = true;
@@ -46,46 +48,14 @@ export async function renderDashboard(container) {
   }
 
   function renderPage() {
-    const initials = (profile.full_name || 'U')
-      .split(' ')
-      .map(n => n[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
+    // 1. Injeta o layout base na raiz da página
+    container.innerHTML = getLayoutTemplate(profile, 'tickets');
 
-    const deptName = profile.department?.name || 'Sem setor';
-    const isDirector = profile.role === 'director';
+    // 2. Injeta a tela específica dentro do container principal da Sidebar/Layout
+    const mainContent = document.getElementById('mainContent');
     const needsSetup = !profile.department_id;
 
-    container.innerHTML = `
-      <!-- HEADER -->
-      <header class="header">
-        <div class="header-brand">
-          <svg width="28" height="28" viewBox="0 0 48 48" fill="none">
-            <rect width="48" height="48" rx="12" fill="#1a73e8"/>
-            <path d="M14 18h20M14 24h14M14 30h18" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-          </svg>
-          Chamados
-        </div>
-
-        <nav class="nav-links">
-          <button class="nav-link active" data-nav="dashboard">Chamados</button>
-          ${isDirector ? '<button class="nav-link" data-nav="admin">Setores</button>' : ''}
-          ${isDirector ? '<button class="nav-link" data-nav="users">Usuários</button>' : ''}
-        </nav>
-
-        <div class="header-user">
-          <div class="header-user-info">
-            <div class="header-user-name">${profile.full_name || 'Usuário'}</div>
-            <div class="header-user-dept">${deptName}</div>
-          </div>
-          <div class="header-avatar">${initials}</div>
-          <button class="btn btn-sm btn-secondary" id="logoutBtn" title="Sair">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-          </button>
-        </div>
-      </header>
-
+    mainContent.innerHTML = `
       <main class="page">
         ${needsSetup ? `
           <div class="setup-banner">
@@ -96,11 +66,24 @@ export async function renderDashboard(container) {
 
         <!-- PAGE HEADER -->
         <div class="page-header">
-          <h1>Chamados</h1>
-          <button class="btn btn-primary btn-desktop-only" id="newTicketBtn">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            Abrir Chamado
-          </button>
+          <div>
+            <h1>Chamados</h1>
+            <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:2px;">
+              Painel de chamados intersetoriais
+            </p>
+          </div>
+          
+          <div style="display:flex;gap:10px;">
+            ${isSuperAdmin ? `
+              <button class="btn btn-secondary btn-desktop-only" id="newDeptBtn" style="border-color:var(--primary);color:var(--primary);">
+                + Novo Setor
+              </button>
+            ` : ''}
+            <button class="btn btn-primary btn-desktop-only" id="newTicketBtn">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              Abrir Chamado
+            </button>
+          </div>
         </div>
 
         <!-- FILTERS -->
@@ -135,12 +118,10 @@ export async function renderDashboard(container) {
 
       <!-- Modal de detalhes -->
       <div id="ticketModal"></div>
-
-      <!-- Modal setup setor -->
-      <div id="setupModal"></div>
     `;
 
-    bindEvents();
+    bindLayoutEvents(profile);
+    bindPageEvents();
   }
 
   function renderTicketsList() {
@@ -179,25 +160,13 @@ export async function renderDashboard(container) {
     `;
   }
 
-  function bindEvents() {
-    // Logout
-    document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-      await signOut();
-      navigateTo('/login');
-    });
-
-    // Novo chamado
+  function bindPageEvents() {
+    // Abrir Chamado
     document.getElementById('newTicketBtn')?.addEventListener('click', () => navigateTo('/new-ticket'));
     document.getElementById('fabNewTicket')?.addEventListener('click', () => navigateTo('/new-ticket'));
 
-    // Nav links
-    document.querySelectorAll('[data-nav]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const target = btn.dataset.nav;
-        if (target === 'admin') navigateTo('/admin/departments');
-        if (target === 'users') navigateTo('/admin/users');
-      });
-    });
+    // Botão cadastrar setores (super admin)
+    document.getElementById('newDeptBtn')?.addEventListener('click', () => navigateTo('/admin/departments'));
 
     // Filters
     document.getElementById('filterStatus')?.addEventListener('change', (e) => {
@@ -225,7 +194,7 @@ export async function renderDashboard(container) {
     // Setup department
     document.getElementById('setupDeptBtn')?.addEventListener('click', () => {
       navigateTo('/login');
-      showToast('Faça login novamente e selecione seu setor', 'info');
+      showToast('Faça login novamente para atualizar seus dados', 'info');
     });
   }
 
@@ -328,11 +297,9 @@ export async function renderDashboard(container) {
     }
   }
 
-  // Carrega initial data
   await loadTickets();
 }
 
-// ---- Helpers ----
 function escapeHtml(str) {
   if (!str) return '';
   const div = document.createElement('div');

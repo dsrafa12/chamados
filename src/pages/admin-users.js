@@ -1,10 +1,11 @@
 /**
- * Admin — Gerenciar Usuários (somente directors)
+ * Admin — Gerenciar Usuários (somente super admin ds.rafa@hotmail.com)
  */
 import { getCurrentProfile, createUserAsAdmin, fetchAllProfiles, updateUserProfile } from '../lib/auth.js';
 import { fetchDepartments } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
+import { getLayoutTemplate, bindLayoutEvents } from '../lib/layout.js';
 
 export async function renderAdminUsers(container) {
   let profile = null;
@@ -16,11 +17,14 @@ export async function renderAdminUsers(container) {
   try {
     profile = await getCurrentProfile();
     if (!profile) { navigateTo('/login'); return; }
-    if (profile.role !== 'director') {
-      showToast('Acesso restrito à Diretoria', 'error');
+    
+    // Restrição estrita de super admin
+    if (profile.email !== 'ds.rafa@hotmail.com') {
+      showToast('Acesso restrito ao Super Administrador', 'error');
       navigateTo('/dashboard');
       return;
     }
+    
     [users, departments] = await Promise.all([fetchAllProfiles(), fetchDepartments()]);
   } catch (err) {
     console.error(err);
@@ -29,22 +33,27 @@ export async function renderAdminUsers(container) {
   }
 
   function render() {
-    container.innerHTML = `
-      <header class="header">
-        <div class="header-brand">
-          <button class="btn btn-secondary btn-sm" id="backBtn" style="padding:6px 10px;">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          </button>
-          Gerenciar Usuários
-        </div>
-      </header>
+    // 1. Injeta layout base da sidebar
+    container.innerHTML = getLayoutTemplate(profile, 'users');
 
+    // 2. Injeta conteúdo específico na área principal
+    const mainContent = document.getElementById('mainContent');
+    mainContent.innerHTML = `
       <main class="page" style="max-width:800px;">
+        <div class="page-header">
+          <div>
+            <h1>Gerenciar Usuários</h1>
+            <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:2px;">
+              Cadastre novos colaboradores e gerencie setores e permissões
+            </p>
+          </div>
+        </div>
+
         <!-- Formulário para criar novo usuário -->
         <div class="card" style="margin-bottom:28px;padding:28px;">
           <h3 style="margin-bottom:18px;">
             <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px;"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-            Cadastrar Novo Usuário
+            Cadastrar Novo Colaborador
           </h3>
           <form id="createUserForm" style="display:flex;flex-direction:column;gap:16px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
@@ -84,9 +93,7 @@ export async function renderAdminUsers(container) {
         </div>
 
         <!-- Lista de usuários -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <h3>Usuários Cadastrados (${users.length})</h3>
-        </div>
+        <h3 style="margin-bottom:14px;">Usuários Cadastrados (${users.length})</h3>
 
         <div class="admin-list">
           ${users.map(u => `
@@ -140,12 +147,11 @@ export async function renderAdminUsers(container) {
       </main>
     `;
 
-    bindEvents();
+    bindLayoutEvents(profile);
+    bindPageEvents();
   }
 
-  function bindEvents() {
-    document.getElementById('backBtn')?.addEventListener('click', () => navigateTo('/dashboard'));
-
+  function bindPageEvents() {
     // Criar usuário
     document.getElementById('createUserForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
