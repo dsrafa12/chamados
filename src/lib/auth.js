@@ -34,7 +34,7 @@ export async function getCurrentProfile() {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*, department:departments!department_id(id, name), departments:profile_departments(department:departments(id, name))')
+      .select('*, department:departments!profiles_department_id_fkey(id, name), departments:profile_departments(department:departments(id, name))')
       .eq('id', session.user.id)
       .single();
 
@@ -52,7 +52,7 @@ export async function getCurrentProfile() {
     // Fallback: Tenta carregar o perfil simples
     const { data, error } = await supabase
       .from('profiles')
-      .select('*, department:departments!department_id(id, name)')
+      .select('*, department:departments!profiles_department_id_fkey(id, name)')
       .eq('id', session.user.id)
       .single();
 
@@ -90,7 +90,7 @@ export async function updateProfile(updates) {
       .from('profiles')
       .update(updates)
       .eq('id', session.user.id)
-      .select('*, department:departments!department_id(id, name), departments:profile_departments(department:departments(id, name))')
+      .select('*, department:departments!profiles_department_id_fkey(id, name), departments:profile_departments(department:departments(id, name))')
       .single();
 
     if (error) throw error;
@@ -106,7 +106,7 @@ export async function updateProfile(updates) {
       .from('profiles')
       .update(updates)
       .eq('id', session.user.id)
-      .select('*, department:departments!department_id(id, name)')
+      .select('*, department:departments!profiles_department_id_fkey(id, name)')
       .single();
 
     if (error) throw error;
@@ -187,7 +187,7 @@ export async function createUserAsAdmin(email, password, fullName, departmentIds
 export async function fetchAllProfiles() {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*, department:departments!department_id(id, name), departments:profile_departments(department:departments(id, name))')
+    .select('*, department:departments!profiles_department_id_fkey(id, name), departments:profile_departments(department:departments(id, name))')
     .eq('tickets_enabled', true)
     .order('full_name');
 
@@ -209,10 +209,10 @@ export async function updateUserProfile(userId, updates, departmentIds) {
     .from('profiles')
     .update({
       ...updates,
-      department_id: departmentIds && departmentIds.length > 0 ? departmentIds[0] : undefined
+      department_id: departmentIds && departmentIds.length > 0 ? departmentIds[0] : null
     })
     .eq('id', userId)
-    .select('*, department:departments!department_id(id, name), departments:profile_departments(department:departments(id, name))')
+    .select('*, department:departments!profiles_department_id_fkey(id, name), departments:profile_departments(department:departments(id, name))')
     .single();
 
   if (error) throw error;

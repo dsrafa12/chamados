@@ -68,6 +68,10 @@ export async function fetchTickets(filters = {}) {
   if (filters.priority) {
     query = query.eq('priority', filters.priority);
   }
+  if (filters.departmentId) {
+    query = query.eq('destination_department_id', filters.departmentId);
+  }
+
 
   if (filters.view === 'created' && filters.myUserId) {
     query = query.eq('created_by', filters.myUserId);

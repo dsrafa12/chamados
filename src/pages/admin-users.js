@@ -236,7 +236,7 @@ export async function renderAdminUsers(container) {
           render();
         } catch (err) {
           console.error(err);
-          showToast('Erro ao atualizar usuário', 'error');
+          showToast('Erro ao atualizar: ' + (err.message || err), 'error');
         }
       });
     });

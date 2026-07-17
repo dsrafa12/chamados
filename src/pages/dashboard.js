@@ -1,7 +1,7 @@
 /**
  * Dashboard — Lista de Chamados com filtros e Sidebar
  */
-import { getCurrentProfile } from '../lib/auth.js';
+import { getCurrentProfile, fetchAllProfiles } from '../lib/auth.js';
 import { fetchTickets, updateTicketStatus, fetchTicketDetail, fetchTicketMessages, sendTicketMessage, fetchTicketCosts, addTicketCost, forwardTicket, fetchDepartments } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
@@ -13,9 +13,10 @@ const STATUS_LABELS = { open: 'Aberto', in_progress: 'Em Andamento', resolved: '
 export async function renderDashboard(container) {
   let profile = null;
   let tickets = [];
-  let filters = { status: '', priority: '', view: '' };
+  let filters = { status: '', view: '', departmentId: '', authorId: '', searchQuery: '' };
   let loadingTickets = true;
-  let viewMode = 'kanban'; // 'kanban' ou 'list'
+  let departmentsList = [];
+  let authorsList = [];
 
   try {
     profile = await getCurrentProfile();
@@ -23,6 +24,8 @@ export async function renderDashboard(container) {
       navigateTo('/login');
       return;
     }
+    departmentsList = await fetchDepartments();
+    authorsList = await fetchAllProfiles();
   } catch {
     navigateTo('/login');
     return;
@@ -69,59 +72,7 @@ export async function renderDashboard(container) {
           }
         }
         
-        /* Estilos do Kanban */
-        .kanban-board {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 20px;
-          margin-top: 20px;
-          align-items: start;
-        }
-        .kanban-column {
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          min-height: 400px;
-          box-shadow: var(--shadow-sm);
-        }
-        .kanban-column-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-bottom: 2px solid var(--border);
-          padding-bottom: 10px;
-          margin-bottom: 4px;
-        }
-        .kanban-column-title {
-          font-weight: 700;
-          font-size: 0.95rem;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .kanban-column-badge {
-          background: var(--bg-app);
-          color: var(--text-secondary);
-          padding: 2px 8px;
-          border-radius: 20px;
-          font-size: 0.8rem;
-          font-weight: 600;
-        }
-        .kanban-cards {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          overflow-y: auto;
-          max-height: 600px;
-        }
-        .kanban-board .ticket-card {
-          margin: 0;
-          padding: 16px;
-        }
+        /* Estilos de visualização única em lista removendo Kanban */
         
         /* Estilos de Tabela Premium */
         .tickets-table-container {
@@ -234,37 +185,37 @@ export async function renderDashboard(container) {
         </div>
 
         <!-- FILTERS & VIEW MODE -->
-        <div class="filter-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
-          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <select class="select" id="filterStatus" style="min-width:150px">
+        <div class="filter-bar" style="display:flex; flex-direction:column; gap:14px; margin-bottom:20px; width:100%;">
+          <!-- Linha 1: Filtros de status, autores, grupos, todos e criados por mim -->
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; width:100%;">
+            <select class="select" id="filterStatus" style="min-width:160px">
               <option value="">Todos os Status</option>
               <option value="open" ${filters.status === 'open' ? 'selected' : ''}>Aberto</option>
               <option value="in_progress" ${filters.status === 'in_progress' ? 'selected' : ''}>Em Andamento</option>
               <option value="resolved" ${filters.status === 'resolved' ? 'selected' : ''}>Resolvido</option>
             </select>
 
-            <select class="select" id="filterPriority" style="min-width:150px">
-              <option value="">Todas Prioridades</option>
-              <option value="low" ${filters.priority === 'low' ? 'selected' : ''}>Baixa</option>
-              <option value="medium" ${filters.priority === 'medium' ? 'selected' : ''}>Média</option>
-              <option value="high" ${filters.priority === 'high' ? 'selected' : ''}>Alta</option>
+            <select class="select" id="filterAuthor" style="min-width:180px">
+              <option value="">Todos os Autores</option>
+              ${authorsList.map(user => `
+                <option value="${user.id}" ${filters.authorId === user.id ? 'selected' : ''}>${escapeHtml(user.full_name)}</option>
+              `).join('')}
+            </select>
+
+            <select class="select" id="filterDepartment" style="min-width:160px">
+              <option value="">Todos os Grupos</option>
+              ${departmentsList.map(dept => `
+                <option value="${dept.id}" ${filters.departmentId === dept.id ? 'selected' : ''}>${escapeHtml(dept.name)}</option>
+              `).join('')}
             </select>
 
             <button class="filter-chip ${filters.view === '' ? 'active' : ''}" data-view="">Todos</button>
             <button class="filter-chip ${filters.view === 'created' ? 'active' : ''}" data-view="created">Criados por mim</button>
-            <button class="filter-chip ${filters.view === 'received' ? 'active' : ''}" data-view="received">Recebidos</button>
           </div>
 
-          <!-- Seletor de Visualização (Desktop Only) -->
-          <div class="view-mode-selector" style="display:flex; background:var(--bg-app); border:1px solid var(--border); padding:4px; border-radius:8px; gap:4px;">
-            <button class="btn btn-sm" id="viewModeListBtn" style="padding: 6px 12px; font-size: 0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:6px; border:none; border-radius: 6px; cursor:pointer; background: ${viewMode === 'list' ? 'var(--primary)' : 'transparent'}; color: ${viewMode === 'list' ? 'white' : 'var(--text-secondary)'};">
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-              Lista
-            </button>
-            <button class="btn btn-sm" id="viewModeKanbanBtn" style="padding: 6px 12px; font-size: 0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:6px; border:none; border-radius: 6px; cursor:pointer; background: ${viewMode === 'kanban' ? 'var(--primary)' : 'transparent'}; color: ${viewMode === 'kanban' ? 'white' : 'var(--text-secondary)'};">
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/></svg>
-              Kanban
-            </button>
+          <!-- Linha 2: Campo de busca de largura total abaixo dos filtros -->
+          <div style="display:flex; width:100%;">
+            <input type="text" class="input" id="searchTickets" placeholder="Buscar nº ou assunto..." style="width:100%; max-width:100%; box-sizing:border-box;" value="${escapeHtml(filters.searchQuery)}">
           </div>
         </div>
 
@@ -286,70 +237,31 @@ export async function renderDashboard(container) {
   }
 
   function renderTicketsList() {
-    if (tickets.length === 0) {
+    let displayTickets = [...tickets];
+
+    // 1. Filtrar por Autor do Chamado
+    if (filters.authorId) {
+      displayTickets = displayTickets.filter(t => t.created_by === filters.authorId);
+    }
+
+    // 2. Campo de busca (Buscar por número ou assunto)
+    if (filters.searchQuery) {
+      const sq = filters.searchQuery.trim().toLowerCase();
+      displayTickets = displayTickets.filter(t => {
+        const numStr = String(t.ticket_number || '');
+        const titleStr = (t.title || '').toLowerCase();
+        return numStr.includes(sq) || titleStr.includes(sq);
+      });
+    }
+
+    if (displayTickets.length === 0) {
       return `
         <div class="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M9 12h6M12 9v6M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
           <h3>Nenhum chamado encontrado</h3>
-          <p>Crie um novo chamado para começar.</p>
-        </div>
-      `;
-    }
-
-    // Se estiver no mobile, força a visualização em lista
-    const isMobile = window.innerWidth <= 900;
-    const activeView = isMobile ? 'list' : viewMode;
-
-    if (activeView === 'kanban') {
-      const openTickets = tickets.filter(t => t.status === 'open');
-      const inProgressTickets = tickets.filter(t => t.status === 'in_progress');
-      const resolvedTickets = tickets.filter(t => t.status === 'resolved');
-
-      return `
-        <div class="kanban-board">
-          <!-- Coluna Aberto -->
-          <div class="kanban-column">
-            <div class="kanban-column-header">
-              <div class="kanban-column-title" style="color:var(--text-primary);">
-                <span style="width:8px;height:8px;border-radius:50%;background:#3b82f6;"></span>
-                Aberto
-              </div>
-              <span class="kanban-column-badge">${openTickets.length}</span>
-            </div>
-            <div class="kanban-cards">
-              ${openTickets.map(t => renderKanbanCard(t)).join('')}
-            </div>
-          </div>
-
-          <!-- Coluna Em Andamento -->
-          <div class="kanban-column">
-            <div class="kanban-column-header">
-              <div class="kanban-column-title" style="color:#d97706;">
-                <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;"></span>
-                Em Andamento
-              </div>
-              <span class="kanban-column-badge">${inProgressTickets.length}</span>
-            </div>
-            <div class="kanban-cards">
-              ${inProgressTickets.map(t => renderKanbanCard(t)).join('')}
-            </div>
-          </div>
-
-          <!-- Coluna Resolvido -->
-          <div class="kanban-column">
-            <div class="kanban-column-header">
-              <div class="kanban-column-title" style="color:#059669;">
-                <span style="width:8px;height:8px;border-radius:50%;background:#10b981;"></span>
-                Resolvido
-              </div>
-              <span class="kanban-column-badge">${resolvedTickets.length}</span>
-            </div>
-            <div class="kanban-cards">
-              ${resolvedTickets.map(t => renderKanbanCard(t)).join('')}
-            </div>
-          </div>
+          <p>Tente ajustar os filtros ou a busca.</p>
         </div>
       `;
     }
@@ -359,38 +271,18 @@ export async function renderDashboard(container) {
         <table class="tickets-table">
           <thead>
             <tr>
-              <th style="width: 32%;">Assunto</th>
-              <th style="width: 23%;">Origem</th>
-              <th style="width: 17%;">Destino</th>
+              <th style="width: 30%;">Assunto</th>
+              <th style="width: 22%;">Origem</th>
+              <th style="width: 15%;">Destino</th>
               <th style="width: 13%;">Data Abertura</th>
-              <th style="width: 8%; text-align:center;">Prioridade</th>
-              <th style="width: 7%; text-align:center;">Status</th>
+              <th style="width: 10%; text-align:center;">Prioridade</th>
+              <th style="width: 10%; text-align:center;">Status</th>
             </tr>
           </thead>
           <tbody>
-            ${tickets.map(t => renderTableRow(t)).join('')}
+            ${displayTickets.map(t => renderTableRow(t)).join('')}
           </tbody>
         </table>
-      </div>
-    `;
-  }
-
-  function renderKanbanCard(t) {
-    return `
-      <div class="card card-clickable ticket-card" data-ticket-id="${t.id}">
-        <div class="ticket-card-header">
-          <span class="ticket-card-title"><span style="color:var(--text-muted);font-weight:normal;margin-right:4px;">#${t.ticket_number || ''}</span>${escapeHtml(t.title)}</span>
-          <span class="badge badge-${t.priority}">${PRIORITY_LABELS[t.priority]}</span>
-        </div>
-        <div class="ticket-card-flow">
-          <span style="font-weight: 500;">${escapeHtml(t.creator?.full_name || '—')}</span>
-          <span class="arrow">→</span>
-          <span style="font-weight: 500;">${escapeHtml(t.destination?.name || 'Colaborador(es)')}</span>
-        </div>
-        <div class="ticket-card-footer">
-          <span class="ticket-card-date">${formatDate(t.created_at)}</span>
-          <span class="badge badge-${t.status}">${STATUS_LABELS[t.status]}</span>
-        </div>
       </div>
     `;
   }
@@ -424,7 +316,7 @@ export async function renderDashboard(container) {
           <span class="badge badge-${t.priority}" style="min-width:80px; padding:6px 12px; font-size:0.82rem; border-radius:10px; display:inline-block;">${PRIORITY_LABELS[t.priority]}</span>
         </td>
         <td style="text-align:center;">
-          <span class="badge badge-${t.status}" style="min-width:95px; padding:6px 12px; font-size:0.82rem; display:inline-block;">${statusLabel}</span>
+          <span class="badge badge-${t.status}" style="min-width:125px; padding:6px 12px; font-size:0.82rem; display:inline-block; white-space:nowrap;">${statusLabel}</span>
         </td>
       </tr>
     `;
@@ -444,8 +336,32 @@ export async function renderDashboard(container) {
       loadTickets();
     });
 
-    document.getElementById('filterPriority')?.addEventListener('change', (e) => {
-      filters.priority = e.target.value;
+    document.getElementById('filterAuthor')?.addEventListener('change', (e) => {
+      filters.authorId = e.target.value;
+      // Atualização rápida de UI no frontend
+      const listContainer = document.getElementById('ticketsList');
+      if (listContainer) {
+        listContainer.innerHTML = renderTicketsList();
+        listContainer.querySelectorAll('[data-ticket-id]').forEach(card => {
+          card.addEventListener('click', () => openTicketDetail(card.dataset.ticketId));
+        });
+      }
+    });
+
+    document.getElementById('searchTickets')?.addEventListener('input', (e) => {
+      filters.searchQuery = e.target.value;
+      // Busca em tempo real instantânea no frontend
+      const listContainer = document.getElementById('ticketsList');
+      if (listContainer) {
+        listContainer.innerHTML = renderTicketsList();
+        listContainer.querySelectorAll('[data-ticket-id]').forEach(card => {
+          card.addEventListener('click', () => openTicketDetail(card.dataset.ticketId));
+        });
+      }
+    });
+
+    document.getElementById('filterDepartment')?.addEventListener('change', (e) => {
+      filters.departmentId = e.target.value;
       loadTickets();
     });
 
@@ -456,16 +372,7 @@ export async function renderDashboard(container) {
       });
     });
 
-    // Seletor de visualização (Lista / Kanban)
-    document.getElementById('viewModeListBtn')?.addEventListener('click', () => {
-      viewMode = 'list';
-      renderPage();
-    });
 
-    document.getElementById('viewModeKanbanBtn')?.addEventListener('click', () => {
-      viewMode = 'kanban';
-      renderPage();
-    });
 
     // Clique no card do ticket
     document.querySelectorAll('[data-ticket-id]').forEach(card => {
