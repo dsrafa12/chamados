@@ -44,7 +44,7 @@ export async function renderAdminUsers(container) {
           <div>
             <h1>Gerenciar Usuários</h1>
             <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:2px;">
-              Cadastre novos colaboradores e gerencie setores e permissões
+              Cadastre novos colaboradores e gerencie grupos e permissões
             </p>
           </div>
         </div>
@@ -66,17 +66,10 @@ export async function renderAdminUsers(container) {
                 <input type="email" id="newEmail" class="input" placeholder="email@empresa.com" required />
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
               <div class="form-group">
                 <label for="newPassword">Senha</label>
                 <input type="password" id="newPassword" class="input" placeholder="Mínimo 6 caracteres" required minlength="6" />
-              </div>
-              <div class="form-group">
-                <label for="newDept">Setor</label>
-                <select id="newDept" class="select" required>
-                  <option value="">Selecione</option>
-                  ${departments.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
-                </select>
               </div>
               <div class="form-group">
                 <label for="newRole">Perfil</label>
@@ -84,6 +77,17 @@ export async function renderAdminUsers(container) {
                   <option value="user">Usuário</option>
                   <option value="director">Diretor (Admin)</option>
                 </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Grupos (Selecione um ou mais)</label>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;border:1px solid var(--border);padding:10px;border-radius:var(--radius-md);background:var(--bg-card);">
+                ${departments.map(d => `
+                  <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;">
+                    <input type="checkbox" name="newDepts" value="${d.id}" style="width:16px;height:16px;" />
+                    ${d.name}
+                  </label>
+                `).join('')}
               </div>
             </div>
             <button type="submit" class="btn btn-primary" ${loading ? 'disabled' : ''} style="align-self:flex-start;">
@@ -112,7 +116,9 @@ export async function renderAdminUsers(container) {
                   <span class="badge ${u.role === 'director' ? 'badge-high' : 'badge-open'}">
                     ${u.role === 'director' ? 'Diretor' : 'Usuário'}
                   </span>
-                  <span class="badge badge-medium">${u.department?.name || 'Sem setor'}</span>
+                  <span class="badge badge-medium" title="${u.departments?.map(ud => ud.name).join(', ') || 'Sem grupo'}">
+                    ${u.departments && u.departments.length > 0 ? u.departments.map(ud => ud.name).join(', ') : 'Sem grupo'}
+                  </span>
                   <button class="btn btn-sm btn-secondary" data-edit-id="${u.id}" title="Editar">
                     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
@@ -120,24 +126,33 @@ export async function renderAdminUsers(container) {
               </div>
 
               ${editingUserId === u.id ? `
-                <div style="display:flex;gap:10px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap;align-items:flex-end;">
-                  <div class="form-group" style="flex:1;min-width:140px;">
-                    <label>Setor</label>
-                    <select class="select" id="editDept-${u.id}">
-                      <option value="">Sem setor</option>
-                      ${departments.map(d => `<option value="${d.id}" ${u.department_id === d.id ? 'selected' : ''}>${d.name}</option>`).join('')}
-                    </select>
+                <div style="display:flex;flex-direction:column;gap:12px;padding-top:10px;border-top:1px solid var(--border);">
+                  <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+                    <div class="form-group" style="min-width:150px;">
+                      <label>Perfil</label>
+                      <select class="select" id="editRole-${u.id}">
+                        <option value="user" ${u.role === 'user' ? 'selected' : ''}>Usuário</option>
+                        <option value="director" ${u.role === 'director' ? 'selected' : ''}>Diretor</option>
+                      </select>
+                    </div>
+                    <div style="display:flex;gap:6px;align-self:flex-end;">
+                      <button class="btn btn-sm btn-primary" data-save-id="${u.id}">Salvar</button>
+                      <button class="btn btn-sm btn-secondary" data-cancel-edit>Cancelar</button>
+                    </div>
                   </div>
-                  <div class="form-group" style="min-width:120px;">
-                    <label>Perfil</label>
-                    <select class="select" id="editRole-${u.id}">
-                      <option value="user" ${u.role === 'user' ? 'selected' : ''}>Usuário</option>
-                      <option value="director" ${u.role === 'director' ? 'selected' : ''}>Diretor</option>
-                    </select>
-                  </div>
-                  <div style="display:flex;gap:6px;">
-                    <button class="btn btn-sm btn-primary" data-save-id="${u.id}">Salvar</button>
-                    <button class="btn btn-sm btn-secondary" data-cancel-edit>Cancelar</button>
+                  <div class="form-group">
+                    <label>Grupos (Selecione um ou mais)</label>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;border:1px solid var(--border);padding:10px;border-radius:var(--radius-md);background:var(--bg-card);">
+                      ${departments.map(d => {
+                        const isAssociated = u.departments?.some(ud => ud.id === d.id) || u.department_id === d.id;
+                        return `
+                          <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;">
+                            <input type="checkbox" name="editDepts-${u.id}" value="${d.id}" ${isAssociated ? 'checked' : ''} style="width:16px;height:16px;" />
+                            ${d.name}
+                          </label>
+                        `;
+                      }).join('')}
+                    </div>
                   </div>
                 </div>
               ` : ''}
@@ -160,11 +175,15 @@ export async function renderAdminUsers(container) {
       const name = document.getElementById('newName').value.trim();
       const email = document.getElementById('newEmail').value.trim();
       const password = document.getElementById('newPassword').value;
-      const deptId = document.getElementById('newDept').value;
+      const deptIds = Array.from(document.querySelectorAll('input[name="newDepts"]:checked')).map(cb => cb.value);
       const role = document.getElementById('newRole').value;
 
-      if (!name || !email || !password || !deptId) {
+      if (!name || !email || !password) {
         showToast('Preencha todos os campos', 'error');
+        return;
+      }
+      if (deptIds.length === 0) {
+        showToast('Selecione pelo menos um grupo', 'error');
         return;
       }
 
@@ -172,7 +191,7 @@ export async function renderAdminUsers(container) {
       render();
 
       try {
-        await createUserAsAdmin(email, password, name, deptId, role);
+        await createUserAsAdmin(email, password, name, deptIds, role);
         users = await fetchAllProfiles();
         showToast(`Usuário "${name}" criado com sucesso!`, 'success');
       } catch (err) {
@@ -208,14 +227,18 @@ export async function renderAdminUsers(container) {
     document.querySelectorAll('[data-save-id]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const userId = btn.dataset.saveId;
-        const deptId = document.getElementById(`editDept-${userId}`)?.value || null;
+        const deptIds = Array.from(document.querySelectorAll(`input[name="editDepts-${userId}"]:checked`)).map(cb => cb.value);
         const role = document.getElementById(`editRole-${userId}`)?.value || 'user';
+
+        if (deptIds.length === 0) {
+          showToast('Selecione pelo menos um grupo', 'error');
+          return;
+        }
 
         try {
           await updateUserProfile(userId, {
-            department_id: deptId || null,
             role,
-          });
+          }, deptIds);
           users = await fetchAllProfiles();
           editingUserId = null;
           showToast('Usuário atualizado!', 'success');

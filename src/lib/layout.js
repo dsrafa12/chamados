@@ -7,6 +7,7 @@ import { signOut } from './auth.js';
 
 export function getLayoutTemplate(profile, activePage) {
   const isSuperAdmin = profile.email === 'ds.rafa@hotmail.com';
+  const isDirector = profile.role === 'director';
   
   const initials = (profile.full_name || 'U')
     .split(' ')
@@ -15,7 +16,7 @@ export function getLayoutTemplate(profile, activePage) {
     .join('')
     .toUpperCase();
 
-  const deptName = profile.department?.name || 'Sem setor';
+  const deptName = profile.departments?.map(d => d.name).join(', ') || 'Sem grupo';
 
   // SVG Icons
   const ticketIcon = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6M12 9v6M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
@@ -42,10 +43,12 @@ export function getLayoutTemplate(profile, activePage) {
             ${ticketIcon} Chamados
           </button>
           
-          ${isSuperAdmin ? `
+          ${isDirector ? `
             <button class="sidebar-link ${activePage === 'departments' ? 'active' : ''}" id="sidebarDepts">
-              ${deptIcon} Setores
+              ${deptIcon} Grupos
             </button>
+          ` : ''}
+          ${isSuperAdmin ? `
             <button class="sidebar-link ${activePage === 'users' ? 'active' : ''}" id="sidebarUsers">
               ${usersIcon} Usuários
             </button>
@@ -86,10 +89,12 @@ export function getLayoutTemplate(profile, activePage) {
           ${ticketIcon} Chamados
         </button>
         
-        ${isSuperAdmin ? `
+        ${isDirector ? `
           <button class="sidebar-link ${activePage === 'departments' ? 'active' : ''}" id="mobileDepts">
-            ${deptIcon} Gerenciar Setores
+            ${deptIcon} Gerenciar Grupos
           </button>
+        ` : ''}
+        ${isSuperAdmin ? `
           <button class="sidebar-link ${activePage === 'users' ? 'active' : ''}" id="mobileUsers">
             ${usersIcon} Gerenciar Usuários
           </button>

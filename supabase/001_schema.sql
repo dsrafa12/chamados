@@ -32,6 +32,10 @@ ADD COLUMN IF NOT EXISTS department_id uuid REFERENCES public.departments(id);
 ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS role text DEFAULT 'user' CHECK (role IN ('user', 'director'));
 
+-- Adiciona tickets_enabled (se o usuário está habilitado para chamados)
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS tickets_enabled boolean DEFAULT true;
+
 -- Index para buscas por setor
 CREATE INDEX IF NOT EXISTS idx_profiles_department ON public.profiles(department_id);
 

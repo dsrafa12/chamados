@@ -1,7 +1,7 @@
 /**
  * Formulário "Abrir Chamado" integrado à Sidebar
  */
-import { getCurrentProfile } from '../lib/auth.js';
+import { getCurrentProfile, fetchAllProfiles } from '../lib/auth.js';
 import { fetchDepartments, createTicket } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
@@ -10,19 +10,28 @@ import { getLayoutTemplate, bindLayoutEvents } from '../lib/layout.js';
 export async function renderNewTicket(container) {
   let profile = null;
   let departments = [];
+  let users = [];
   let selectedVisibility = new Set();
+  let selectedUsers = new Set();
   let loading = false;
 
   try {
     profile = await getCurrentProfile();
     if (!profile) { navigateTo('/login'); return; }
-    departments = await fetchDepartments();
+    
+    [departments, users] = await Promise.all([
+      fetchDepartments(),
+      fetchAllProfiles()
+    ]);
+    
+    // Filtra o próprio usuário criador
+    users = users.filter(u => u.id !== profile.id);
   } catch {
     navigateTo('/login');
     return;
   }
 
-  const myDeptName = profile.department?.name || 'Sem setor';
+  const myDeptName = profile.departments?.map(d => d.name).join(', ') || 'Sem grupo';
 
   function render() {
     // 1. Injeta layout base da sidebar
@@ -42,56 +51,68 @@ export async function renderNewTicket(container) {
         </div>
 
         <div class="form-card">
-          <div>
-            <span class="origin-badge">
-              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>
-              Setor de Origem: ${myDeptName}
-            </span>
-          </div>
-
           <form id="ticketForm">
             <div style="display:flex;flex-direction:column;gap:20px;">
+              <!-- Autor do Chamado (Informativo) -->
+              <div class="form-group">
+                <label>Autor do Chamado</label>
+                <input type="text" class="input" value="${escapeHtml(profile.full_name || 'Sem nome')}" disabled style="background:var(--bg-card); cursor:not-allowed; opacity:0.8;" />
+              </div>
+
               <!-- Assunto -->
               <div class="form-group">
                 <label for="title">Assunto</label>
-                <input type="text" id="title" class="input" placeholder="Nome do Pedido e Tipo Problema" required />
-              </div>
-
-              <!-- Destino -->
-              <div class="form-group">
-                <label for="destination">Destino</label>
-                <select id="destination" class="select" required>
-                  <option value="">Selecione o setor de destino</option>
-                  ${departments
-                    .filter(d => d.id !== profile.department_id)
-                    .map(d => `<option value="${d.id}">${d.name}</option>`)
-                    .join('')}
-                </select>
+                <input type="text" id="title" class="input" placeholder="Nome do Pedido e Tipo Problema" maxlength="120" required />
               </div>
 
               <!-- Prioridade -->
               <div class="form-group">
-                <label for="priority">Prioridade</label>
-                <select id="priority" class="select" required>
-                  <option value="low">Baixa</option>
-                  <option value="medium" selected>Média</option>
-                  <option value="high">Alta</option>
-                </select>
+                <label style="margin-bottom:8px; display:block;">Prioridade</label>
+                <div style="display:flex;gap:12px;margin-top:4px;">
+                  <div class="priority-btn" style="flex:1;text-align:center;padding:10px;border-radius:8px;border:2px solid var(--border);cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--bg-card);transition:all 0.2s;" data-priority="low">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#10b981;"></span>
+                    Baixa
+                  </div>
+                  <div class="priority-btn" style="flex:1;text-align:center;padding:10px;border-radius:8px;border:2px solid #3b82f6;cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(59,130,246,0.08);color:#2563eb;transition:all 0.2s;" data-priority="medium">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#3b82f6;"></span>
+                    Média
+                  </div>
+                  <div class="priority-btn" style="flex:1;text-align:center;padding:10px;border-radius:8px;border:2px solid var(--border);cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--bg-card);transition:all 0.2s;" data-priority="high">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;"></span>
+                    Alta
+                  </div>
+                </div>
+                <input type="hidden" id="priority" value="medium" />
               </div>
 
-              <!-- Visibilidade Compartilhada -->
+              <!-- Destinar para Grupo -->
               <div class="form-group">
-                <label>Visibilidade Compartilhada <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+                <label>Destinar para Grupo <span style="font-weight:400;color:var(--text-muted)">(opcional se colaborador selecionado)</span></label>
                 <div class="multi-select" id="visibilitySelect">
-                  ${departments
-                    .filter(d => d.id !== profile.department_id)
-                    .map(d => `
-                      <label class="multi-select-item ${selectedVisibility.has(d.id) ? 'selected' : ''}" data-dept-id="${d.id}">
-                        <span class="multi-select-check"></span>
-                        <input type="checkbox" value="${d.id}" ${selectedVisibility.has(d.id) ? 'checked' : ''} />
-                        ${d.name}
-                      </label>
-                    `).join('')}
+                  ${departments.map(d => `
+                    <label class="multi-select-item ${selectedVisibility.has(d.id) ? 'selected' : ''}" data-dept-id="${d.id}">
+                      <span class="multi-select-check"></span>
+                      <input type="checkbox" value="${d.id}" ${selectedVisibility.has(d.id) ? 'checked' : ''} />
+                      ${d.name}
+                    </label>
+                  `).join('')}
+                </div>
+              </div>
+
+              <!-- Destinar para Colaborador -->
+              <div class="form-group">
+                <label>Destinar para Colaborador <span style="font-weight:400;color:var(--text-muted)">(opcional se grupo selecionado)</span></label>
+                <div class="multi-select" id="usersSelect" style="max-height:180px;overflow-y:auto;">
+                  ${users.map(u => `
+                    <label class="multi-select-item ${selectedUsers.has(u.id) ? 'selected' : ''}" data-user-id="${u.id}">
+                      <span class="multi-select-check"></span>
+                      <input type="checkbox" value="${u.id}" ${selectedUsers.has(u.id) ? 'checked' : ''} />
+                      <div style="display:inline-flex;align-items:center;gap:6px;">
+                        <span style="font-weight:500;">${u.full_name}</span>
+                        <span style="font-size:0.75rem;color:var(--text-muted);">(${u.departments?.map(d => d.name).join(', ') || 'Sem grupo'})</span>
+                      </div>
+                    </label>
+                  `).join('')}
                 </div>
               </div>
 
@@ -119,7 +140,7 @@ export async function renderNewTicket(container) {
     // Voltar
     document.getElementById('backBtn')?.addEventListener('click', () => navigateTo('/dashboard'));
 
-    // Multi-select visibilidade
+    // Multi-select visibilidade grupos
     document.querySelectorAll('#visibilitySelect .multi-select-item').forEach(item => {
       item.addEventListener('click', (e) => {
         e.preventDefault();
@@ -138,6 +159,56 @@ export async function renderNewTicket(container) {
       });
     });
 
+    // Multi-select usuários
+    document.querySelectorAll('#usersSelect .multi-select-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const userId = item.dataset.userId;
+        const checkbox = item.querySelector('input[type="checkbox"]');
+
+        if (selectedUsers.has(userId)) {
+          selectedUsers.delete(userId);
+          item.classList.remove('selected');
+          checkbox.checked = false;
+        } else {
+          selectedUsers.add(userId);
+          item.classList.add('selected');
+          checkbox.checked = true;
+        }
+      });
+    });
+
+    // Seleção de prioridade por botões
+    const priorityInput = document.getElementById('priority');
+    const priorityButtons = document.querySelectorAll('.priority-btn');
+
+    priorityButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.priority;
+        if (priorityInput) priorityInput.value = val;
+
+        priorityButtons.forEach(b => {
+          b.style.border = '2px solid var(--border)';
+          b.style.background = 'var(--bg-card)';
+          b.style.color = 'var(--text-primary)';
+        });
+
+        if (val === 'low') {
+          btn.style.border = '2px solid #10b981';
+          btn.style.background = 'rgba(16,185,129,0.08)';
+          btn.style.color = '#059669';
+        } else if (val === 'medium') {
+          btn.style.border = '2px solid #3b82f6';
+          btn.style.background = 'rgba(59,130,246,0.08)';
+          btn.style.color = '#2563eb';
+        } else if (val === 'high') {
+          btn.style.border = '2px solid #ef4444';
+          btn.style.background = 'rgba(239,68,68,0.08)';
+          btn.style.color = '#dc2626';
+        }
+      });
+    });
+
     // Submit
     document.getElementById('ticketForm')?.addEventListener('submit', handleSubmit);
   }
@@ -147,28 +218,39 @@ export async function renderNewTicket(container) {
     if (loading) return;
 
     const title = document.getElementById('title').value.trim();
-    const destinationDeptId = document.getElementById('destination').value;
     const priority = document.getElementById('priority').value;
     const description = document.getElementById('description').value.trim();
 
-    if (!title || !destinationDeptId) {
-      showToast('Preencha todos os campos obrigatórios', 'error');
+    if (!title) {
+      showToast('Preencha o assunto do chamado', 'error');
       return;
     }
 
-    selectedVisibility.delete(destinationDeptId);
+    if (title.length > 120) {
+      showToast('O assunto não pode exceder 120 caracteres', 'error');
+      return;
+    }
+
+    // Validação obrigatória: Pelo menos um grupo ou colaborador selecionado
+    if (selectedVisibility.size === 0 && selectedUsers.size === 0) {
+      showToast('Selecione pelo menos um grupo ou colaborador de destino.', 'error');
+      return;
+    }
 
     loading = true;
     render();
+
+    // Compatibilidade com coluna legada
+    const destinationDeptId = Array.from(selectedVisibility)[0] || null;
 
     try {
       await createTicket({
         title,
         description,
-        originDeptId: profile.department_id,
         destinationDeptId,
         priority,
         visibilityDeptIds: Array.from(selectedVisibility),
+        profileIds: Array.from(selectedUsers),
       });
 
       showToast('Chamado criado com sucesso!', 'success');
@@ -182,4 +264,11 @@ export async function renderNewTicket(container) {
   }
 
   render();
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }

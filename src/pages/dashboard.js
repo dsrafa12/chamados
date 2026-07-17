@@ -28,6 +28,7 @@ export async function renderDashboard(container) {
   }
 
   const isSuperAdmin = profile.email === 'ds.rafa@hotmail.com';
+  const isDirector = profile.role === 'director';
 
   async function loadTickets() {
     loadingTickets = true;
@@ -36,6 +37,7 @@ export async function renderDashboard(container) {
       tickets = await fetchTickets({
         ...filters,
         myDepartmentId: profile.department_id,
+        myDepartmentIds: profile.departments?.map(d => d.id) || [],
         myUserId: profile.id,
       });
     } catch (err) {
@@ -53,14 +55,14 @@ export async function renderDashboard(container) {
 
     // 2. Injeta a tela específica dentro do container principal da Sidebar/Layout
     const mainContent = document.getElementById('mainContent');
-    const needsSetup = !profile.department_id;
+    const needsSetup = !profile.department_id && (!profile.departments || profile.departments.length === 0);
 
     mainContent.innerHTML = `
       <main class="page">
         ${needsSetup ? `
           <div class="setup-banner">
-            <p>⚠️ Você ainda não selecionou seu setor. Configure para poder abrir e visualizar chamados.</p>
-            <button class="btn btn-sm btn-primary" id="setupDeptBtn">Configurar Setor</button>
+            <p>⚠️ Você ainda não selecionou seu grupo. Configure para poder abrir e visualizar chamados.</p>
+            <button class="btn btn-sm btn-primary" id="setupDeptBtn">Configurar Grupo</button>
           </div>
         ` : ''}
 
@@ -74,9 +76,9 @@ export async function renderDashboard(container) {
           </div>
           
           <div style="display:flex;gap:10px;">
-            ${isSuperAdmin ? `
+            ${isDirector ? `
               <button class="btn btn-secondary btn-desktop-only" id="newDeptBtn" style="border-color:var(--primary);color:var(--primary);">
-                + Novo Setor
+                + Novo Grupo
               </button>
             ` : ''}
             <button class="btn btn-primary btn-desktop-only" id="newTicketBtn">
@@ -146,9 +148,9 @@ export async function renderDashboard(container) {
               <span class="badge badge-${t.priority}">${PRIORITY_LABELS[t.priority]}</span>
             </div>
             <div class="ticket-card-flow">
-              <span>${t.origin?.name || '—'}</span>
+              <span style="font-weight: 500;">${escapeHtml(t.creator?.full_name || '—')}</span>
               <span class="arrow">→</span>
-              <span>${t.destination?.name || '—'}</span>
+              <span style="font-weight: 500;">${escapeHtml(t.destination?.name || 'Colaborador(es)')}</span>
             </div>
             <div class="ticket-card-footer">
               <span class="ticket-card-date">${formatDate(t.created_at)}</span>
@@ -205,9 +207,9 @@ export async function renderDashboard(container) {
     try {
       const ticket = await fetchTicketDetail(ticketId);
       const canChangeStatus =
-        ticket.destination_department_id === profile.department_id ||
         ticket.created_by === profile.id ||
-        profile.role === 'director';
+        profile.role === 'director' ||
+        ticket.involved_user_ids?.includes(profile.id);
 
       modalContainer.innerHTML = `
         <div class="modal-overlay" id="modalOverlay">
@@ -224,12 +226,8 @@ export async function renderDashboard(container) {
                 <span class="modal-detail-value">${ticket.creator?.full_name || '—'}</span>
               </div>
               <div class="modal-detail-row">
-                <span class="modal-detail-label">Setor Origem</span>
-                <span class="modal-detail-value">${ticket.origin?.name || '—'}</span>
-              </div>
-              <div class="modal-detail-row">
-                <span class="modal-detail-label">Setor Destino</span>
-                <span class="modal-detail-value">${ticket.destination?.name || '—'}</span>
+                <span class="modal-detail-label">Destino</span>
+                <span class="modal-detail-value">${ticket.destination?.name || 'Colaborador(es)'}</span>
               </div>
               <div class="modal-detail-row">
                 <span class="modal-detail-label">Prioridade</span>

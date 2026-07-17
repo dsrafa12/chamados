@@ -73,8 +73,12 @@ export async function fetchTickets(filters = {}) {
     query = query.eq('created_by', filters.myUserId);
   }
 
-  if (filters.view === 'received' && filters.myDepartmentId) {
-    query = query.eq('destination_department_id', filters.myDepartmentId);
+  if (filters.view === 'received') {
+    if (filters.myDepartmentIds && filters.myDepartmentIds.length > 0) {
+      query = query.in('destination_department_id', filters.myDepartmentIds);
+    } else if (filters.myDepartmentId) {
+      query = query.eq('destination_department_id', filters.myDepartmentId);
+    }
   }
 
   const { data, error } = await query;
@@ -85,7 +89,7 @@ export async function fetchTickets(filters = {}) {
 /**
  * Cria um chamado + registros de visibilidade compartilhada.
  */
-export async function createTicket({ title, description, originDeptId, destinationDeptId, priority, visibilityDeptIds = [] }) {
+export async function createTicket({ title, description, destinationDeptId, priority, visibilityDeptIds = [], profileIds = [] }) {
   // 1. Busca o usuário logado
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Não autenticado');
@@ -96,7 +100,7 @@ export async function createTicket({ title, description, originDeptId, destinati
     .insert({
       title,
       description,
-      origin_department_id: originDeptId,
+      origin_department_id: null,
       destination_department_id: destinationDeptId,
       priority,
       created_by: session.user.id,
@@ -106,7 +110,7 @@ export async function createTicket({ title, description, originDeptId, destinati
 
   if (ticketError) throw ticketError;
 
-  // 3. Insere visibilidade compartilhada (se houver)
+  // 3. Insere visibilidade compartilhada na tabela legada (para compatibilidade/histórico)
   if (visibilityDeptIds.length > 0) {
     const visibilityRows = visibilityDeptIds.map(deptId => ({
       ticket_id: ticket.id,
@@ -118,6 +122,39 @@ export async function createTicket({ title, description, originDeptId, destinati
       .insert(visibilityRows);
 
     if (visError) throw visError;
+  }
+
+  // 4. Mapear e associar todos os usuários envolvidos na tabela ticket_users
+  const allDeptIds = [destinationDeptId, ...visibilityDeptIds].filter(Boolean);
+  let usersInDepts = [];
+
+  if (allDeptIds.length > 0) {
+    const { data: deptUsers, error: deptUsersError } = await supabase
+      .from('profile_departments')
+      .select('profile_id')
+      .in('department_id', allDeptIds);
+
+    if (deptUsersError) throw deptUsersError;
+    usersInDepts = deptUsers?.map(du => du.profile_id) || [];
+  }
+
+  const finalUserIds = new Set([
+    session.user.id, // O próprio criador do chamado (autor de origem)
+    ...usersInDepts, // Usuários dos grupos (setores) envolvidos
+    ...profileIds // Usuários adicionais selecionados diretamente
+  ]);
+
+  if (finalUserIds.size > 0) {
+    const ticketUserRows = Array.from(finalUserIds).map(pId => ({
+      ticket_id: ticket.id,
+      profile_id: pId
+    }));
+
+    const { error: ticketUserError } = await supabase
+      .from('ticket_users')
+      .insert(ticketUserRows);
+
+    if (ticketUserError) throw ticketUserError;
   }
 
   return ticket;
@@ -157,6 +194,14 @@ export async function fetchTicketDetail(ticketId) {
     .eq('ticket_id', ticketId);
 
   ticket.shared_visibility = visibility?.map(v => v.department) || [];
+
+  // Busca usuários envolvidos na tabela pivot ticket_users
+  const { data: involvedUsers } = await supabase
+    .from('ticket_users')
+    .select('profile_id')
+    .eq('ticket_id', ticketId);
+
+  ticket.involved_user_ids = involvedUsers?.map(iu => iu.profile_id) || [];
 
   return ticket;
 }
