@@ -62,7 +62,7 @@ export async function renderNewTicket(container) {
               <!-- Assunto -->
               <div class="form-group">
                 <label for="title">Assunto</label>
-                <input type="text" id="title" class="input" placeholder="Nome do Pedido e Tipo Problema" maxlength="120" required />
+                <input type="text" id="title" class="input" placeholder="Nome do Pedido e Tipo Problema" maxlength="60" required />
               </div>
 
               <!-- Prioridade -->
@@ -226,8 +226,8 @@ export async function renderNewTicket(container) {
       return;
     }
 
-    if (title.length > 120) {
-      showToast('O assunto não pode exceder 120 caracteres', 'error');
+    if (title.length > 60) {
+      showToast('O assunto não pode exceder 60 caracteres', 'error');
       return;
     }
 
