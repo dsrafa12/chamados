@@ -80,7 +80,7 @@ export async function renderAdminUsers(container) {
               </div>
             </div>
             <div class="form-group">
-              <label>Grupos (Selecione um ou mais)</label>
+              <label>Grupos <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
               <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;border:1px solid var(--border);padding:10px;border-radius:var(--radius-md);background:var(--bg-card);">
                 ${departments.map(d => `
                   <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;">
@@ -141,7 +141,7 @@ export async function renderAdminUsers(container) {
                     </div>
                   </div>
                   <div class="form-group">
-                    <label>Grupos (Selecione um ou mais)</label>
+                    <label>Grupos <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
                     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;border:1px solid var(--border);padding:10px;border-radius:var(--radius-md);background:var(--bg-card);">
                       ${departments.map(d => {
                         const isAssociated = u.departments?.some(ud => ud.id === d.id) || u.department_id === d.id;
@@ -180,10 +180,6 @@ export async function renderAdminUsers(container) {
 
       if (!name || !email || !password) {
         showToast('Preencha todos os campos', 'error');
-        return;
-      }
-      if (deptIds.length === 0) {
-        showToast('Selecione pelo menos um grupo', 'error');
         return;
       }
 
@@ -229,11 +225,6 @@ export async function renderAdminUsers(container) {
         const userId = btn.dataset.saveId;
         const deptIds = Array.from(document.querySelectorAll(`input[name="editDepts-${userId}"]:checked`)).map(cb => cb.value);
         const role = document.getElementById(`editRole-${userId}`)?.value || 'user';
-
-        if (deptIds.length === 0) {
-          showToast('Selecione pelo menos um grupo', 'error');
-          return;
-        }
 
         try {
           await updateUserProfile(userId, {

@@ -57,9 +57,9 @@ export async function fetchTickets(filters = {}) {
       *,
       origin:departments!origin_department_id(id, name),
       destination:departments!destination_department_id(id, name),
-      creator:profiles!created_by(id, full_name)
+      creator:profiles!created_by(id, full_name, department:departments!profiles_department_id_fkey(name))
     `)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: true });
 
   if (filters.status) {
     query = query.eq('status', filters.status);
@@ -205,3 +205,106 @@ export async function fetchTicketDetail(ticketId) {
 
   return ticket;
 }
+
+/** Busca mensagens do chat de um chamado */
+export async function fetchTicketMessages(ticketId) {
+  const { data, error } = await supabase
+    .from('ticket_messages')
+    .select(`
+      *,
+      sender:profiles!profile_id(full_name)
+    `)
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data;
+}
+
+/** Envia mensagem no chat de um chamado */
+export async function sendTicketMessage(ticketId, content) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Não autenticado');
+
+  const { data, error } = await supabase
+    .from('ticket_messages')
+    .insert({
+      ticket_id: ticketId,
+      profile_id: session.user.id,
+      content,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/** Busca custos externos de um chamado */
+export async function fetchTicketCosts(ticketId) {
+  const { data, error } = await supabase
+    .from('ticket_costs')
+    .select('*')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data;
+}
+
+/** Adiciona um custo externo ao chamado */
+export async function addTicketCost(ticketId, description, amount) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Não autenticado');
+
+  const { data, error } = await supabase
+    .from('ticket_costs')
+    .insert({
+      ticket_id: ticketId,
+      description,
+      amount,
+      created_by: session.user.id,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/** Encaminha o chamado para um novo setor e vincula seus membros */
+export async function forwardTicket(ticketId, departmentId) {
+  // 1. Atualiza o grupo de destino na tabela tickets
+  const { error: updateError } = await supabase
+    .from('tickets')
+    .update({ destination_department_id: departmentId })
+    .eq('id', ticketId);
+
+  if (updateError) throw updateError;
+
+  // 2. Busca todos os usuários do novo setor
+  const { data: deptUsers, error: usersError } = await supabase
+    .from('profile_departments')
+    .select('profile_id')
+    .eq('department_id', departmentId);
+
+  if (usersError) throw usersError;
+
+  if (deptUsers && deptUsers.length > 0) {
+    // 3. Insere os usuários do novo setor na tabela pivot ticket_users para garantir a visibilidade RLS
+    const insertRows = deptUsers.map(du => ({
+      ticket_id: ticketId,
+      profile_id: du.profile_id
+    }));
+
+    const { error: pivotError } = await supabase
+      .from('ticket_users')
+      .insert(insertRows);
+
+    if (pivotError && !pivotError.message?.includes('duplicate key')) {
+      throw pivotError;
+    }
+  }
+}
+
+
