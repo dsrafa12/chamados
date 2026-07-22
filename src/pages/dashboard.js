@@ -102,14 +102,14 @@ export async function renderDashboard(container) {
           background: #fafafa;
           color: var(--text-secondary);
           font-weight: 700;
-          padding: 8px 24px;
+          padding: 8px 12px;
           border-bottom: 1px solid var(--border);
           font-size: 0.9rem;
           text-transform: none;
           letter-spacing: 0.3px;
         }
         .tickets-table td {
-          padding: 8px 24px;
+          padding: 8px 12px;
           border-bottom: 1px solid var(--border);
           vertical-align: middle;
           color: var(--text-primary);
@@ -385,12 +385,12 @@ export async function renderDashboard(container) {
         <table class="tickets-table">
           <thead>
             <tr>
-              <th style="width: 35%;">Assunto</th>
+              <th style="width: 33%;">Assunto</th>
               <th style="width: 15%;">Origem</th>
               <th style="width: 15%;">Destino</th>
               <th style="width: 12%;">Data Abertura</th>
-              <th style="width: 11%; text-align:center;">Prioridade</th>
-              <th style="width: 12%; text-align:center;">Status</th>
+              <th style="width: 12%; text-align:center;">Prioridade</th>
+              <th style="width: 13%; text-align:center;">Status</th>
             </tr>
           </thead>
           <tbody>
