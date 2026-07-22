@@ -19,5 +19,8 @@ SELECT
   now(), 
   now(), 
   now()
-FROM auth.users
-ON CONFLICT (provider, id) DO NOTHING;
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM auth.identities i 
+  WHERE i.user_id = u.id AND i.provider = 'email'
+);
