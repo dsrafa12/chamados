@@ -12,7 +12,7 @@ WHERE email_confirmed_at IS NULL;
 -- 2. Inserir as identidades de login de e-mail ausentes na tabela auth.identities
 INSERT INTO auth.identities (id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 SELECT 
-  id::text, 
+  id, 
   id, 
   jsonb_build_object('sub', id::text, 'email', email, 'email_verified', true), 
   'email', 
