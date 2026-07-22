@@ -82,7 +82,8 @@ export async function renderDashboard(container) {
         
         /* Estilos de Tabela Premium */
         .tickets-table-container {
-          width: 100%;
+          width: 100% !important;
+          display: block;
           overflow-x: auto;
           background: var(--bg-card);
           border-radius: 12px;
@@ -90,7 +91,8 @@ export async function renderDashboard(container) {
           box-shadow: var(--shadow-sm);
         }
         .tickets-table {
-          width: 100%;
+          width: 100% !important;
+          table-layout: fixed;
           border-collapse: collapse;
           text-align: left;
           font-size: 0.95rem;
