@@ -202,6 +202,45 @@ export async function renderDashboard(container) {
           display: block;
           margin-top: 2px;
         }
+        .progress-badge-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: #eff6ff;
+          border: 1px solid #dbeafe;
+          padding: 8px 16px;
+          border-radius: 12px;
+          box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.05);
+        }
+        .progress-badge-card-number {
+          background: #3b82f6;
+          color: white;
+          min-width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 1.1rem;
+          padding: 0 6px;
+        }
+        .progress-badge-card-label {
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #1d4ed8;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          display: block;
+          line-height: 1;
+        }
+        .progress-badge-card-title {
+          font-size: 0.88rem;
+          color: #1e3a8a;
+          font-weight: 800;
+          display: block;
+          margin-top: 2px;
+        }
       </style>
 
       <main class="page">
@@ -222,13 +261,27 @@ export async function renderDashboard(container) {
               </p>
             </div>
             
-            <div class="pending-badge-card">
-              <div class="pending-badge-card-number">
-                ${loadingTickets ? '...' : tickets.filter(t => t.status === 'open').length}
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+              <!-- Card de Pendentes -->
+              <div class="pending-badge-card">
+                <div class="pending-badge-card-number">
+                  ${loadingTickets ? '...' : tickets.filter(t => t.status === 'open').length}
+                </div>
+                <div>
+                  <span class="pending-badge-card-label">Chamados</span>
+                  <strong class="pending-badge-card-title">Pendentes</strong>
+                </div>
               </div>
-              <div>
-                <span class="pending-badge-card-label">Chamados</span>
-                <strong class="pending-badge-card-title">Pendentes</strong>
+
+              <!-- Card de Em Atendimento -->
+              <div class="progress-badge-card">
+                <div class="progress-badge-card-number">
+                  ${loadingTickets ? '...' : tickets.filter(t => t.status === 'in_progress').length}
+                </div>
+                <div>
+                  <span class="progress-badge-card-label">Chamados</span>
+                  <strong class="progress-badge-card-title">Em Atendimento</strong>
+                </div>
               </div>
             </div>
           </div>
