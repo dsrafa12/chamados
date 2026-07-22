@@ -65,6 +65,12 @@ export async function renderNewTicket(container) {
                 <input type="text" id="title" class="input" placeholder="Nome do Pedido e Tipo Problema" maxlength="60" required />
               </div>
 
+              <!-- Prazo (Deadline) -->
+              <div class="form-group">
+                <label for="deadline">Prazo de Conclusão <span style="font-weight:400;color:var(--text-muted)">(opcional)</span></label>
+                <input type="datetime-local" id="deadline" class="input" style="background:var(--bg-card); color:var(--text-primary); border-color:var(--border);" />
+              </div>
+
               <!-- Prioridade -->
               <div class="form-group">
                 <label style="margin-bottom:8px; display:block;">Prioridade</label>
@@ -237,6 +243,9 @@ export async function renderNewTicket(container) {
       return;
     }
 
+    const deadlineVal = document.getElementById('deadline').value;
+    const deadline = deadlineVal ? new Date(deadlineVal).toISOString() : null;
+
     loading = true;
     render();
 
@@ -249,6 +258,7 @@ export async function renderNewTicket(container) {
         description,
         destinationDeptId,
         priority,
+        deadline,
         visibilityDeptIds: Array.from(selectedVisibility),
         profileIds: Array.from(selectedUsers),
       });

@@ -51,6 +51,18 @@ export async function deleteDepartment(id) {
  * @param {string} [filters.myUserId] - ID do usuário logado
  */
 export async function fetchTickets(filters = {}) {
+  // 1. Antes de listar, atualiza no banco todos os chamados que passaram do prazo e não estão resolvidos
+  try {
+    await supabase
+      .from('tickets')
+      .update({ status: 'overdue' })
+      .lt('deadline', new Date().toISOString())
+      .not('status', 'eq', 'resolved')
+      .not('status', 'eq', 'overdue');
+  } catch (err) {
+    console.error('Erro ao atualizar chamados vencidos:', err);
+  }
+
   let query = supabase
     .from('tickets')
     .select(`
@@ -98,7 +110,7 @@ export async function fetchTickets(filters = {}) {
 /**
  * Cria um chamado + registros de visibilidade compartilhada.
  */
-export async function createTicket({ title, description, destinationDeptId, priority, visibilityDeptIds = [], profileIds = [] }) {
+export async function createTicket({ title, description, destinationDeptId, priority, deadline = null, visibilityDeptIds = [], profileIds = [] }) {
   // 1. Busca o usuário logado
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Não autenticado');
@@ -112,6 +124,7 @@ export async function createTicket({ title, description, destinationDeptId, prio
       origin_department_id: null,
       destination_department_id: destinationDeptId,
       priority,
+      deadline,
       created_by: session.user.id,
     })
     .select()
@@ -186,6 +199,19 @@ export async function updateTicketStatus(ticketId, newStatus) {
 
 /** Busca detalhes de um chamado com visibilidade */
 export async function fetchTicketDetail(ticketId) {
+  // Antes de carregar detalhes, garante que o status do chamado esteja atualizado se passou do prazo
+  try {
+    await supabase
+      .from('tickets')
+      .update({ status: 'overdue' })
+      .eq('id', ticketId)
+      .lt('deadline', new Date().toISOString())
+      .not('status', 'eq', 'resolved')
+      .not('status', 'eq', 'overdue');
+  } catch (err) {
+    console.error('Erro ao atualizar status vencido:', err);
+  }
+
   const { data: ticket, error } = await supabase
     .from('tickets')
     .select(`
@@ -313,6 +339,15 @@ export async function forwardTicket(ticketId, departmentId) {
       throw pivotError;
     }
   }
+}
+
+/** Atualiza o prazo (deadline) de um chamado */
+export async function updateTicketDeadline(ticketId, newDeadline) {
+  const { error } = await supabase
+    .from('tickets')
+    .update({ deadline: newDeadline })
+    .eq('id', ticketId);
+  if (error) throw error;
 }
 
 

@@ -2,13 +2,13 @@
  * Dashboard — Lista de Chamados com filtros e Sidebar
  */
 import { getCurrentProfile, fetchAllProfiles } from '../lib/auth.js';
-import { fetchTickets, updateTicketStatus, fetchTicketDetail, fetchTicketMessages, sendTicketMessage, fetchTicketCosts, addTicketCost, forwardTicket, fetchDepartments } from '../lib/api.js';
+import { fetchTickets, updateTicketStatus, fetchTicketDetail, fetchTicketMessages, sendTicketMessage, fetchTicketCosts, addTicketCost, forwardTicket, fetchDepartments, updateTicketDeadline } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
 import { getLayoutTemplate, bindLayoutEvents } from '../lib/layout.js';
 
 const PRIORITY_LABELS = { low: 'Baixa', medium: 'Média', high: 'Alta' };
-const STATUS_LABELS = { open: 'Aberto', in_progress: 'Em Andamento', resolved: 'Resolvido' };
+const STATUS_LABELS = { open: 'Aberto', in_progress: 'Em Andamento', resolved: 'Resolvido', overdue: 'Atrasado' };
 
 export async function renderDashboard(container) {
   let profile = null;
@@ -166,6 +166,12 @@ export async function renderDashboard(container) {
           border-radius: 20px !important;
           font-weight: bold;
         }
+        .tickets-table .badge-overdue {
+          background: #ef4444 !important;
+          color: white !important;
+          border-radius: 20px !important;
+          font-weight: bold;
+        }
         .pending-badge-card {
           display: flex;
           align-items: center;
@@ -244,6 +250,45 @@ export async function renderDashboard(container) {
           display: block;
           margin-top: 2px;
         }
+        .overdue-badge-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: #fef2f2;
+          border: 1px solid #fee2e2;
+          padding: 8px 16px;
+          border-radius: 12px;
+          box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.05);
+        }
+        .overdue-badge-card-number {
+          background: #ef4444;
+          color: white;
+          min-width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 1.1rem;
+          padding: 0 6px;
+        }
+        .overdue-badge-card-label {
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #b91c1c;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          display: block;
+          line-height: 1;
+        }
+        .overdue-badge-card-title {
+          font-size: 0.88rem;
+          color: #7f1d1d;
+          font-weight: 800;
+          display: block;
+          margin-top: 2px;
+        }
       </style>
 
       <main class="page">
@@ -286,6 +331,17 @@ export async function renderDashboard(container) {
                   <strong class="progress-badge-card-title">Em Atendimento</strong>
                 </div>
               </div>
+
+              <!-- Card de Atrasados -->
+              <div class="overdue-badge-card">
+                <div class="overdue-badge-card-number">
+                  ${loadingTickets ? '...' : tickets.filter(t => t.status === 'overdue').length}
+                </div>
+                <div>
+                  <span class="overdue-badge-card-label">Chamados</span>
+                  <strong class="overdue-badge-card-title">Atrasados</strong>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -306,6 +362,7 @@ export async function renderDashboard(container) {
               <option value="open" ${filters.status === 'open' ? 'selected' : ''}>Aberto</option>
               <option value="in_progress" ${filters.status === 'in_progress' ? 'selected' : ''}>Em Andamento</option>
               <option value="resolved" ${filters.status === 'resolved' ? 'selected' : ''}>Resolvido</option>
+              <option value="overdue" ${filters.status === 'overdue' ? 'selected' : ''}>Atrasado</option>
             </select>
 
             <select class="select" id="filterAuthor" style="min-width:180px">
@@ -599,6 +656,28 @@ export async function renderDashboard(container) {
                       <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Data de Encerramento</span>
                       <strong style="color:var(--text-primary);">${ticket.status === 'resolved' && ticket.updated_at ? formatDate(ticket.updated_at) : '—'}</strong>
                     </div>
+                    <div>
+                      <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Prazo de Conclusão</span>
+                      <div id="deadlineDisplay" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <strong style="color:var(--text-primary);" id="deadlineText">
+                          ${ticket.deadline ? formatDate(ticket.deadline) : 'Sem prazo definido'}
+                        </strong>
+                        ${ticket.created_by === profile.id && ticket.status !== 'resolved' ? `
+                          <button class="btn btn-sm btn-icon" id="btnEditDeadline" style="padding:2px 6px;font-size:0.75rem;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--primary);" title="Editar Prazo">✏️</button>
+                        ` : ''}
+                      </div>
+                      
+                      <!-- Formulário para editar prazo (oculto por padrão) -->
+                      ${ticket.created_by === profile.id && ticket.status !== 'resolved' ? `
+                        <div id="editDeadlineForm" style="display:none;flex-direction:column;gap:6px;margin-top:6px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-app);">
+                          <input type="datetime-local" id="newDeadlineInput" class="input" style="font-size:0.8rem;padding:6px;background:var(--bg-card);" value="${ticket.deadline ? new Date(new Date(ticket.deadline).getTime() - new Date(ticket.deadline).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}" />
+                          <div style="display:flex;gap:6px;">
+                            <button class="btn btn-sm btn-primary" id="btnSaveDeadline" style="font-size:0.75rem;padding:4px 8px;">Salvar</button>
+                            <button class="btn btn-sm btn-secondary" id="btnCancelDeadline" style="font-size:0.75rem;padding:4px 8px;">Cancelar</button>
+                          </div>
+                        </div>
+                      ` : ''}
+                    </div>
                   </div>
 
                   <div style="display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;">
@@ -865,6 +944,55 @@ export async function renderDashboard(container) {
         const updatedMessages = await fetchTicketMessages(ticketId);
         renderMessages(updatedMessages);
         showToast('Chat atualizado!', 'success');
+      });
+
+      // Fluxo de Edição de Prazo (somente criador do chamado)
+      const btnEditDeadline = document.getElementById('btnEditDeadline');
+      const editDeadlineForm = document.getElementById('editDeadlineForm');
+      const btnCancelDeadline = document.getElementById('btnCancelDeadline');
+      const btnSaveDeadline = document.getElementById('btnSaveDeadline');
+
+      btnEditDeadline?.addEventListener('click', () => {
+        if (editDeadlineForm) {
+          editDeadlineForm.style.display = 'flex';
+          btnEditDeadline.style.display = 'none';
+        }
+      });
+
+      btnCancelDeadline?.addEventListener('click', () => {
+        if (editDeadlineForm) {
+          editDeadlineForm.style.display = 'none';
+          if (btnEditDeadline) btnEditDeadline.style.display = 'inline-block';
+        }
+      });
+
+      btnSaveDeadline?.addEventListener('click', async () => {
+        const newDeadlineVal = document.getElementById('newDeadlineInput')?.value;
+        if (!newDeadlineVal) {
+          showToast('Defina uma data/hora de prazo válida', 'error');
+          return;
+        }
+
+        const newDeadline = new Date(newDeadlineVal);
+        const oldDeadline = ticket.deadline ? new Date(ticket.deadline) : null;
+
+        // Validar no frontend: novo prazo deve ser maior
+        if (oldDeadline && newDeadline <= oldDeadline) {
+          showToast('O novo prazo deve ser maior do que o prazo atual', 'error');
+          return;
+        }
+
+        try {
+          await updateTicketDeadline(ticketId, newDeadline.toISOString());
+          showToast('Prazo atualizado com sucesso!', 'success');
+          
+          // Recarregar os detalhes para atualizar tudo
+          openTicketDetail(ticketId);
+          loadTickets(); // Atualiza também a tabela de fundo
+        } catch (err) {
+          console.error(err);
+          showToast(err.message || 'Erro ao atualizar prazo', 'error');
+        }
       });
 
       // Sub-funções de renderização de listas internas
