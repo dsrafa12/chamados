@@ -301,7 +301,7 @@ export async function renderDashboard(container) {
 
         <!-- PAGE HEADER -->
         <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 24px;">
-          <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 48px; flex-wrap: wrap;">
             <div>
               <h1 style="margin: 0;">Chamados</h1>
               <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:2px;">
