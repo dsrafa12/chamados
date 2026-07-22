@@ -65,7 +65,8 @@ export async function renderDashboard(container) {
       <style>
         /* Forçar a página e a tabela a usarem a largura máxima disponível */
         .page {
-          max-width: 100% !important;
+          max-width: 1200px !important;
+          margin: 0 auto !important;
           padding: 24px 16px !important;
         }
 
