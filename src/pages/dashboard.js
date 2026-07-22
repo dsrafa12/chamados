@@ -305,7 +305,7 @@ export async function renderDashboard(container) {
             <div>
               <h1 style="margin: 0;">Chamados</h1>
               <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:2px;">
-                Painel de chamados intersetoriais
+                Painel de chamados Fundiferro
               </p>
             </div>
             

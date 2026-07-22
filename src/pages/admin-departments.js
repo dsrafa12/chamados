@@ -149,7 +149,7 @@ export async function renderAdminDepartments(container) {
         </span>
       </div>
 
-      <div style="display:flex; flex-direction:column; gap:8px; max-height:480px; overflow-y:auto; padding-right:4px;">
+      <div style="display:flex; flex-direction:column; gap:8px;">
         ${sortedUsers.map(u => {
           const isMember = deptMembers.has(u.id);
           
