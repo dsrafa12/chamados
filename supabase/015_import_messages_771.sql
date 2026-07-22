@@ -17,11 +17,11 @@ BEGIN
   END IF;
 
   -- 2. Buscar os IDs dos perfis do Peter e do Matheus
-  SELECT id INTO v_peter_id FROM public.profiles WHERE full_name ILIKE '%Peter Prudencio%' LIMIT 1;
+  SELECT id INTO v_peter_id FROM public.profiles WHERE full_name ILIKE '%Peter%' LIMIT 1;
   SELECT id INTO v_matheus_id FROM public.profiles WHERE full_name ILIKE '%Matheus Boseli%' LIMIT 1;
 
   IF v_peter_id IS NULL THEN
-    RAISE EXCEPTION 'Perfil do usuário Peter Prudencio não foi localizado.';
+    RAISE EXCEPTION 'Perfil do usuário Peter não foi localizado.';
   END IF;
   
   IF v_matheus_id IS NULL THEN
