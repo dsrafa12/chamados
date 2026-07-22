@@ -4,14 +4,7 @@
 -- ============================================================
 
 -- 1. Criar a função auxiliar temporária para obter ou criar usuários de forma segura com senha crypt('123456')
-CREATE OR REPLACE FUNCTION public.get_or_create_user(p_full_name text, p_email text, p_dept_name text)
-RETURNS uuid AS $$
-DECLARE
-  v_user_id uuid;
-  v_dept_id uuid;
-END;
-$$;
-DROP FUNCTION public.get_or_create_user(text, text, text);
+DROP FUNCTION IF EXISTS public.get_or_create_user(text, text, text);
 
 CREATE FUNCTION public.get_or_create_user(p_full_name text, p_email text, p_dept_name text)
 RETURNS uuid AS $$
