@@ -39,7 +39,7 @@ export async function renderAdminUsers(container) {
     // 2. Injeta conteúdo específico na área principal
     const mainContent = document.getElementById('mainContent');
     mainContent.innerHTML = `
-      <main class="page" style="max-width:800px;">
+      <main class="page" style="max-width:800px; padding-top: 48px !important;">
         <div class="page-header">
           <div>
             <h1>Gerenciar Usuários</h1>

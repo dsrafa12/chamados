@@ -40,7 +40,7 @@ export async function renderNewTicket(container) {
     // 2. Injeta conteúdo específico na área principal
     const mainContent = document.getElementById('mainContent');
     mainContent.innerHTML = `
-      <main class="page form-page">
+      <main class="page form-page" style="padding-top: 48px !important;">
         <!-- HEADER DO FORMULÁRIO -->
         <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
           <button class="btn btn-secondary btn-sm" id="backBtn" style="padding:8px 12px;">

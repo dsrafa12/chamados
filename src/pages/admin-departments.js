@@ -42,7 +42,7 @@ export async function renderAdminDepartments(container) {
     // 2. Injeta conteúdo específico na área principal (Duas colunas)
     const mainContent = document.getElementById('mainContent');
     mainContent.innerHTML = `
-      <main class="page" style="max-width:1200px; margin: 0 auto;">
+      <main class="page" style="max-width:1200px; margin: 0 auto; padding-top: 48px !important;">
         <div class="page-header">
           <div>
             <h1>Gerenciar Grupos</h1>

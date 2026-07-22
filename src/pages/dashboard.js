@@ -67,7 +67,7 @@ export async function renderDashboard(container) {
         .page {
           max-width: 1200px !important;
           margin: 0 auto !important;
-          padding: 24px 16px !important;
+          padding: 48px 16px 24px 16px !important;
         }
 
         .view-mode-selector {
