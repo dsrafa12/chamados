@@ -397,7 +397,7 @@ h3 { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
 /* ---- Page Layout ---- */
 .page {
   padding: 24px 20px;
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
   animation: fadeIn 0.3s ease;
 }

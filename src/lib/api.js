@@ -57,12 +57,17 @@ export async function fetchTickets(filters = {}) {
       *,
       origin:departments!origin_department_id(id, name),
       destination:departments!destination_department_id(id, name),
-      creator:profiles!created_by(id, full_name, department:departments!profiles_department_id_fkey(name))
+      creator:profiles!created_by(id, full_name, department:departments!profiles_department_id_fkey(name)),
+      ticket_users(profile:profiles(id, full_name))
     `)
     .order('created_at', { ascending: true });
 
-  if (filters.status) {
+  if (filters.view === 'resolved') {
+    query = query.eq('status', 'resolved');
+  } else if (filters.status) {
     query = query.eq('status', filters.status);
+  } else {
+    query = query.neq('status', 'resolved');
   }
 
   if (filters.priority) {
@@ -168,7 +173,10 @@ export async function createTicket({ title, description, destinationDeptId, prio
 export async function updateTicketStatus(ticketId, newStatus) {
   const { data, error } = await supabase
     .from('tickets')
-    .update({ status: newStatus })
+    .update({ 
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    })
     .eq('id', ticketId)
     .select()
     .single();
@@ -184,7 +192,8 @@ export async function fetchTicketDetail(ticketId) {
       *,
       origin:departments!origin_department_id(id, name),
       destination:departments!destination_department_id(id, name),
-      creator:profiles!created_by(id, full_name, email)
+      creator:profiles!created_by(id, full_name, email),
+      ticket_users(profile:profiles(id, full_name))
     `)
     .eq('id', ticketId)
     .single();
@@ -199,13 +208,8 @@ export async function fetchTicketDetail(ticketId) {
 
   ticket.shared_visibility = visibility?.map(v => v.department) || [];
 
-  // Busca usuários envolvidos na tabela pivot ticket_users
-  const { data: involvedUsers } = await supabase
-    .from('ticket_users')
-    .select('profile_id')
-    .eq('ticket_id', ticketId);
-
-  ticket.involved_user_ids = involvedUsers?.map(iu => iu.profile_id) || [];
+  // Mapeia involved_user_ids para compatibilidade
+  ticket.involved_user_ids = ticket.ticket_users?.map(tu => tu.profile?.id).filter(Boolean) || [];
 
   return ticket;
 }

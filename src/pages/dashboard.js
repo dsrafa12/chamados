@@ -63,6 +63,12 @@ export async function renderDashboard(container) {
 
     mainContent.innerHTML = `
       <style>
+        /* Forçar a página e a tabela a usarem a largura máxima disponível */
+        .page {
+          max-width: 100% !important;
+          padding: 24px 16px !important;
+        }
+
         .view-mode-selector {
           display: flex;
         }
@@ -87,20 +93,20 @@ export async function renderDashboard(container) {
           width: 100%;
           border-collapse: collapse;
           text-align: left;
-          font-size: 0.88rem;
+          font-size: 0.95rem;
         }
         .tickets-table th {
           background: #fafafa;
           color: var(--text-secondary);
           font-weight: 700;
-          padding: 14px 20px;
+          padding: 8px 24px;
           border-bottom: 1px solid var(--border);
-          font-size: 0.82rem;
+          font-size: 0.9rem;
           text-transform: none;
           letter-spacing: 0.3px;
         }
         .tickets-table td {
-          padding: 14px 20px;
+          padding: 8px 24px;
           border-bottom: 1px solid var(--border);
           vertical-align: middle;
           color: var(--text-primary);
@@ -157,6 +163,45 @@ export async function renderDashboard(container) {
           border-radius: 20px !important;
           font-weight: bold;
         }
+        .pending-badge-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: #fffbeb;
+          border: 1px solid #fef3c7;
+          padding: 8px 16px;
+          border-radius: 12px;
+          box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.05);
+        }
+        .pending-badge-card-number {
+          background: #f59e0b;
+          color: white;
+          min-width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 1.1rem;
+          padding: 0 6px;
+        }
+        .pending-badge-card-label {
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #b45309;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          display: block;
+          line-height: 1;
+        }
+        .pending-badge-card-title {
+          font-size: 0.88rem;
+          color: #78350f;
+          font-weight: 800;
+          display: block;
+          margin-top: 2px;
+        }
       </style>
 
       <main class="page">
@@ -168,12 +213,24 @@ export async function renderDashboard(container) {
         ` : ''}
 
         <!-- PAGE HEADER -->
-        <div class="page-header">
-          <div>
-            <h1>Chamados</h1>
-            <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:2px;">
-              Painel de chamados intersetoriais
-            </p>
+        <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 24px;">
+          <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+            <div>
+              <h1 style="margin: 0;">Chamados</h1>
+              <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:2px;">
+                Painel de chamados intersetoriais
+              </p>
+            </div>
+            
+            <div class="pending-badge-card">
+              <div class="pending-badge-card-number">
+                ${loadingTickets ? '...' : tickets.filter(t => t.status === 'open').length}
+              </div>
+              <div>
+                <span class="pending-badge-card-label">Chamados</span>
+                <strong class="pending-badge-card-title">Pendentes</strong>
+              </div>
+            </div>
           </div>
           
           <div style="display:flex;gap:10px;">
@@ -211,6 +268,7 @@ export async function renderDashboard(container) {
 
             <button class="filter-chip ${filters.view === '' ? 'active' : ''}" data-view="">Todos</button>
             <button class="filter-chip ${filters.view === 'created' ? 'active' : ''}" data-view="created">Criados por mim</button>
+            <button class="filter-chip ${filters.view === 'resolved' ? 'active' : ''}" data-view="resolved">Finalizados</button>
           </div>
 
           <!-- Linha 2: Campo de busca de largura total abaixo dos filtros -->
@@ -271,12 +329,12 @@ export async function renderDashboard(container) {
         <table class="tickets-table">
           <thead>
             <tr>
-              <th style="width: 30%;">Assunto</th>
-              <th style="width: 22%;">Origem</th>
+              <th style="width: 45%;">Assunto</th>
+              <th style="width: 15%;">Origem</th>
               <th style="width: 15%;">Destino</th>
-              <th style="width: 13%;">Data Abertura</th>
-              <th style="width: 10%; text-align:center;">Prioridade</th>
-              <th style="width: 10%; text-align:center;">Status</th>
+              <th style="width: 10%;">Data Abertura</th>
+              <th style="width: 7%; text-align:center;">Prioridade</th>
+              <th style="width: 8%; text-align:center;">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -292,31 +350,40 @@ export async function renderDashboard(container) {
     const dateOnly = t.created_at ? new Date(t.created_at).toLocaleDateString('pt-BR') : '—';
     const statusLabel = t.status === 'open' ? 'Pendente' : STATUS_LABELS[t.status];
 
+    // Determinar destino (grupo ou colaboradores)
+    let destinationName = t.destination?.name;
+    if (!destinationName) {
+      const collaborators = t.ticket_users
+        ?.map(tu => tu.profile)
+        .filter(p => p && p.id !== t.created_by) || [];
+      destinationName = collaborators.map(c => c.full_name).join(', ') || 'Colaborador(es)';
+    }
+
     return `
       <tr class="clickable-row" data-ticket-id="${t.id}">
         <td>
-          <div style="display:flex; flex-direction:column; gap:4px;">
-            <strong style="font-size:0.92rem; color:var(--text-primary);">Nº: ${t.ticket_number || ''}</strong>
-            <span style="font-size:0.8rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; letter-spacing:0.3px;">${escapeHtml(t.title)}</span>
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <strong style="font-size:0.9rem; color:var(--text-primary);">Nº: ${t.ticket_number || ''}</strong>
+            <span style="font-size:0.78rem; color:var(--text-muted); text-transform:uppercase; font-weight:600; letter-spacing:0.3px;">${escapeHtml(t.title)}</span>
           </div>
         </td>
         <td>
           <div style="display:flex; flex-direction:column; gap:3px;">
-            <span style="font-weight:700; color:var(--text-secondary); font-size:0.88rem;">${escapeHtml(originDeptName)}</span>
-            <span style="font-size:0.82rem; color:var(--text-muted);">${escapeHtml(t.creator?.full_name || '—')}</span>
+            <span style="font-weight:700; color:var(--text-secondary); font-size:0.95rem;">${escapeHtml(originDeptName)}</span>
+            <span style="font-size:0.88rem; color:var(--text-muted);">${escapeHtml(t.creator?.full_name || '—')}</span>
           </div>
         </td>
         <td>
-          <span style="font-weight:600; color:var(--text-secondary); font-size:0.88rem;">${escapeHtml(t.destination?.name || 'Colaborador(es)')}</span>
+          <span style="font-weight:600; color:var(--text-secondary); font-size:0.95rem;">${escapeHtml(destinationName)}</span>
         </td>
         <td>
-          <span style="color:var(--text-secondary); font-size:0.88rem; font-weight:500;">${dateOnly}</span>
+          <span style="color:var(--text-secondary); font-size:0.95rem; font-weight:500;">${dateOnly}</span>
         </td>
         <td style="text-align:center;">
-          <span class="badge badge-${t.priority}" style="min-width:80px; padding:6px 12px; font-size:0.82rem; border-radius:10px; display:inline-block;">${PRIORITY_LABELS[t.priority]}</span>
+          <span class="badge badge-${t.priority}" style="min-width:80px; padding:6px 12px; font-size:0.85rem; border-radius:10px; display:inline-block;">${PRIORITY_LABELS[t.priority]}</span>
         </td>
         <td style="text-align:center;">
-          <span class="badge badge-${t.status}" style="min-width:125px; padding:6px 12px; font-size:0.82rem; display:inline-block; white-space:nowrap;">${statusLabel}</span>
+          <span class="badge badge-${t.status}" style="min-width:125px; padding:6px 12px; font-size:0.85rem; display:inline-block; white-space:nowrap;">${statusLabel}</span>
         </td>
       </tr>
     `;
@@ -460,11 +527,21 @@ export async function renderDashboard(container) {
                     </div>
                     <div>
                       <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Destino</span>
-                      <strong style="color:var(--text-primary);">${escapeHtml(ticket.destination?.name || 'Colaborador(es)')}</strong>
+                      <strong style="color:var(--text-primary);">
+                        ${escapeHtml(
+                          ticket.destination?.name || 
+                          ticket.ticket_users
+                            ?.map(tu => tu.profile)
+                            .filter(p => p && p.id !== ticket.created_by)
+                            .map(c => c.full_name)
+                            .join(', ') || 
+                          'Colaborador(es)'
+                        )}
+                      </strong>
                     </div>
                     <div>
                       <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Data de Encerramento</span>
-                      <strong style="color:var(--text-primary);">${ticket.status === 'resolved' ? formatDate(ticket.updated_at) : '—'}</strong>
+                      <strong style="color:var(--text-primary);">${ticket.status === 'resolved' && ticket.updated_at ? formatDate(ticket.updated_at) : '—'}</strong>
                     </div>
                   </div>
 
@@ -503,7 +580,7 @@ export async function renderDashboard(container) {
                   <div id="costInputForm" style="display:none;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--bg-app);margin-bottom:12px;">
                     <input type="text" id="costDesc" class="input" placeholder="Descrição do custo..." style="font-size:0.85rem;padding:8px 10px;background:var(--bg-card);" />
                     <div style="display:flex;gap:10px;">
-                      <input type="number" step="0.01" id="costVal" class="input" placeholder="Valor (R$)" style="font-size:0.85rem;padding:8px 10px;background:var(--bg-card);flex:1;" />
+                      <input type="text" id="costVal" class="input" placeholder="R$ 0,00" style="font-size:0.85rem;padding:8px 10px;background:var(--bg-card);flex:1;" />
                       <button class="btn btn-sm btn-primary" id="saveCostBtn" style="font-size:0.8rem;padding:6px 12px;">Salvar</button>
                       <button class="btn btn-sm btn-secondary" id="cancelCostBtn" style="font-size:0.8rem;padding:6px 12px;">Cancelar</button>
                     </div>
@@ -631,6 +708,24 @@ export async function renderDashboard(container) {
       const costInputForm = document.getElementById('costInputForm');
       const addCostBtn = document.getElementById('addCostBtn');
 
+      // Máscara monetária em tempo real para moeda Real (BRL)
+      const costValInput = document.getElementById('costVal');
+      if (costValInput) {
+        costValInput.addEventListener('input', (e) => {
+          let value = e.target.value;
+          let digits = value.replace(/\D/g, '');
+          if (digits.length === 0) {
+            e.target.value = '';
+            return;
+          }
+          let numberValue = parseFloat(digits) / 100;
+          e.target.value = new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(numberValue);
+        });
+      }
+
       addCostBtn?.addEventListener('click', () => {
         if (costInputForm) {
           costInputForm.style.display = 'flex';
@@ -656,7 +751,9 @@ export async function renderDashboard(container) {
           return;
         }
 
-        const val = parseFloat(valStr);
+        // Limpar a formatação BRL (R$, pontos) e converter vírgula decimal para ponto
+        const cleanValStr = valStr.replace(/[^\d,]/g, '').replace(',', '.');
+        const val = parseFloat(cleanValStr);
         if (isNaN(val) || val <= 0) {
           showToast('Valor de custo inválido', 'error');
           return;
