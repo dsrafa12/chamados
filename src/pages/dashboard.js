@@ -385,12 +385,12 @@ export async function renderDashboard(container) {
         <table class="tickets-table">
           <thead>
             <tr>
-              <th style="width: 45%;">Assunto</th>
+              <th style="width: 35%;">Assunto</th>
               <th style="width: 15%;">Origem</th>
               <th style="width: 15%;">Destino</th>
-              <th style="width: 10%;">Data Abertura</th>
-              <th style="width: 7%; text-align:center;">Prioridade</th>
-              <th style="width: 8%; text-align:center;">Status</th>
+              <th style="width: 12%;">Data Abertura</th>
+              <th style="width: 11%; text-align:center;">Prioridade</th>
+              <th style="width: 12%; text-align:center;">Status</th>
             </tr>
           </thead>
           <tbody>
