@@ -572,10 +572,12 @@ export async function renderDashboard(container) {
 
     try {
       const ticket = await fetchTicketDetail(ticketId);
+      const isMemberOfDestinationDept = profile.departments?.some(d => d.id === ticket.destination_department_id);
       const canChangeStatus =
         ticket.created_by === profile.id ||
         profile.role === 'director' ||
-        ticket.involved_user_ids?.includes(profile.id);
+        ticket.involved_user_ids?.includes(profile.id) ||
+        isMemberOfDestinationDept;
 
       // Carrega mensagens e custos iniciais
       const [messages, costs, allDepts] = await Promise.all([
