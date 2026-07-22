@@ -662,13 +662,13 @@ export async function renderDashboard(container) {
                         <strong style="color:var(--text-primary);" id="deadlineText">
                           ${ticket.deadline ? formatDate(ticket.deadline) : 'Sem prazo definido'}
                         </strong>
-                        ${ticket.created_by === profile.id && ticket.status !== 'resolved' ? `
+                        ${(ticket.created_by === profile.id || profile.role === 'director') && ticket.status !== 'resolved' ? `
                           <button class="btn btn-sm btn-icon" id="btnEditDeadline" style="padding:2px 6px;font-size:0.75rem;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--primary);" title="Editar Prazo">✏️</button>
                         ` : ''}
                       </div>
                       
                       <!-- Formulário para editar prazo (oculto por padrão) -->
-                      ${ticket.created_by === profile.id && ticket.status !== 'resolved' ? `
+                      ${(ticket.created_by === profile.id || profile.role === 'director') && ticket.status !== 'resolved' ? `
                         <div id="editDeadlineForm" style="display:none;flex-direction:column;gap:6px;margin-top:6px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-app);">
                           <input type="datetime-local" id="newDeadlineInput" class="input" style="font-size:0.8rem;padding:6px;background:var(--bg-card);" value="${ticket.deadline ? new Date(new Date(ticket.deadline).getTime() - new Date(ticket.deadline).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}" />
                           <div style="display:flex;gap:6px;">
@@ -976,8 +976,8 @@ export async function renderDashboard(container) {
         const newDeadline = new Date(newDeadlineVal);
         const oldDeadline = ticket.deadline ? new Date(ticket.deadline) : null;
 
-        // Validar no frontend: novo prazo deve ser maior
-        if (oldDeadline && newDeadline <= oldDeadline) {
+        // Validar no frontend: novo prazo deve ser maior (exceto para diretores)
+        if (profile.role !== 'director' && oldDeadline && newDeadline <= oldDeadline) {
           showToast('O novo prazo deve ser maior do que o prazo atual', 'error');
           return;
         }
