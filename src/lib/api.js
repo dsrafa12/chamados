@@ -378,4 +378,69 @@ export async function addTicketCollaborators(ticketId, profileIds) {
   }
 }
 
+/** Busca todos os processos de compra */
+export async function fetchPurchaseProcesses() {
+  const { data, error } = await supabase
+    .from('purchase_processes')
+    .select(`
+      *,
+      ticket:tickets(
+        id,
+        ticket_number,
+        title,
+        created_by,
+        destination_department_id,
+        creator:profiles!created_by(full_name),
+        destination:departments!destination_department_id(name)
+      )
+    `)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+/** Busca processo de compra associado a um chamado */
+export async function fetchPurchaseProcessByTicket(ticketId) {
+  const { data, error } = await supabase
+    .from('purchase_processes')
+    .select('*')
+    .eq('ticket_id', ticketId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Cria um processo de compra para um chamado */
+export async function createPurchaseProcess(ticketId) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Não autenticado');
+
+  const { data, error } = await supabase
+    .from('purchase_processes')
+    .insert({
+      ticket_id: ticketId,
+      status: 'awaiting_start',
+      created_by: session.user.id
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/** Atualiza o status do processo de compra */
+export async function updatePurchaseProcessStatus(processId, newStatus) {
+  const { data, error } = await supabase
+    .from('purchase_processes')
+    .update({
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', processId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 

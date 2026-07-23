@@ -8,7 +8,22 @@ import { showToast } from '../lib/toast.js';
 import { getLayoutTemplate, bindLayoutEvents } from '../lib/layout.js';
 
 const PRIORITY_LABELS = { low: 'Baixa', medium: 'Média', high: 'Alta' };
-const STATUS_LABELS = { open: 'Aberto', in_progress: 'Em Andamento', resolved: 'Resolvido', overdue: 'Atrasado' };
+const STATUS_LABELS = { 
+  open: 'Aberto', 
+  in_progress: 'Em Andamento', 
+  resolved: 'Resolvido', 
+  overdue: 'Atrasado',
+  awaiting_start: 'Aguardando Início',
+  in_analysis: 'Em Análise',
+  awaiting_info: 'Aguardando Informações',
+  in_quotation: 'Em Cotação',
+  in_approval: 'Em Aprovação',
+  order_issued: 'Pedido Emitido',
+  awaiting_supplier: 'Aguardando Fornecedor',
+  awaiting_receipt: 'Aguardando Recebimento',
+  finalized: 'Finalizado',
+  cancelled: 'Cancelado'
+};
 
 export async function renderDashboard(container) {
   let profile = null;

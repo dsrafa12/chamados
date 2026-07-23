@@ -12,14 +12,31 @@ import {
   updateTicketDeadline, 
   addTicketCost, 
   sendTicketMessage, 
-  addTicketCollaborators 
+  addTicketCollaborators,
+  fetchPurchaseProcessByTicket,
+  createPurchaseProcess
 } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
 import { getLayoutTemplate, bindLayoutEvents } from '../lib/layout.js';
 
 const PRIORITY_LABELS = { low: 'Baixa', medium: 'Média', high: 'Alta' };
-const STATUS_LABELS = { open: 'Aberto', in_progress: 'Em Andamento', resolved: 'Resolvido', overdue: 'Atrasado' };
+const STATUS_LABELS = { 
+  open: 'Aberto', 
+  in_progress: 'Em Andamento', 
+  resolved: 'Resolvido', 
+  overdue: 'Atrasado',
+  awaiting_start: 'Aguardando Início',
+  in_analysis: 'Em Análise',
+  awaiting_info: 'Aguardando Informações',
+  in_quotation: 'Em Cotação',
+  in_approval: 'Em Aprovação',
+  order_issued: 'Pedido Emitido',
+  awaiting_supplier: 'Aguardando Fornecedor',
+  awaiting_receipt: 'Aguardando Recebimento',
+  finalized: 'Finalizado',
+  cancelled: 'Cancelado'
+};
 
 export async function renderTicketDetail(container, queryString) {
   const params = new URLSearchParams(queryString || '');
@@ -37,6 +54,7 @@ export async function renderTicketDetail(container, queryString) {
   let allDepts = [];
   let history = [];
   let allProfiles = [];
+  let purchaseProcess = null;
 
   try {
     profile = await getCurrentProfile();
@@ -64,15 +82,15 @@ export async function renderTicketDetail(container, queryString) {
 
       if (!canChangeStatus && profile.role !== 'director') {
         // Se o usuário não tiver permissão para ver ou interagir, redireciona
-        // (A RLS também garante isso, mas o front-end trata amigavelmente)
       }
 
-      [messages, costs, allDepts, history, allProfiles] = await Promise.all([
+      [messages, costs, allDepts, history, allProfiles, purchaseProcess] = await Promise.all([
         fetchTicketMessages(ticketId),
         fetchTicketCosts(ticketId),
         fetchDepartments(),
         fetchTicketHistory(ticketId),
-        fetchAllProfiles()
+        fetchAllProfiles(),
+        fetchPurchaseProcessByTicket(ticketId)
       ]);
     } catch (err) {
       console.error(err);
@@ -99,6 +117,9 @@ export async function renderTicketDetail(container, queryString) {
       isMemberOfDestinationDept ||
       isMemberOfOriginDept;
 
+    const isMemberOfCompras = profile.departments?.some(d => d.name?.toLowerCase() === 'compras') || profile.role === 'director';
+    const showStandardButtons = !purchaseProcess && canChangeStatus;
+
     const isOverdue = ticket.deadline && new Date(ticket.deadline) < new Date();
     let statusClass = ticket.status;
     let statusLabel = STATUS_LABELS[ticket.status];
@@ -119,6 +140,9 @@ export async function renderTicketDetail(container, queryString) {
     if (statusClass === 'in_progress_overdue') {
       detailBadgeStyle = 'font-size:0.72rem; line-height:1.15; padding:4px 8px; white-space:normal; text-align:center; display:inline-block; max-width:125px;';
       detailLabelHtml = `Em Atendimento<br>(Atrasado)`;
+    } else if (statusClass === 'awaiting_start' || statusClass === 'in_analysis' || statusClass === 'awaiting_info' || statusClass === 'in_quotation' || statusClass === 'in_approval' || statusClass === 'order_issued' || statusClass === 'awaiting_supplier' || statusClass === 'awaiting_receipt' || statusClass === 'finalized' || statusClass === 'cancelled') {
+      detailBadgeStyle = 'font-size:0.75rem; line-height:1.15; padding:4px 8px; white-space:normal; text-align:center; display:inline-block; max-width:125px;';
+      detailLabelHtml = statusLabel;
     }
 
     mainContent.innerHTML = `
@@ -136,12 +160,23 @@ export async function renderTicketDetail(container, queryString) {
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             ${canChangeStatus ? `
               <button class="btn btn-sm" id="btnCollaborators" style="background:#6366f1;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Colaboradores</button>
+            ` : ''}
+            
+            ${showStandardButtons ? `
               ${(ticket.status === 'open' || ticket.status === 'overdue') ? `
                 <button class="btn btn-sm" id="btnStartService" style="background:#3b82f6;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Iniciar Atendimento</button>
               ` : ''}
               ${ticket.status !== 'resolved' ? `
                 <button class="btn btn-sm" id="btnFinishTicket" style="background:#059669;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Finalizar Chamado</button>
               ` : ''}
+            ` : ''}
+
+            ${isMemberOfCompras ? `
+              ${purchaseProcess ? `
+                <button class="btn btn-sm" id="btnAccessPurchaseProcess" style="background:#0284c7;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Acessar Processo de Compra</button>
+              ` : `
+                <button class="btn btn-sm" id="btnCreatePurchaseProcess" style="background:#0f766e;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Criar Processo de Compra</button>
+              `}
             ` : ''}
           </div>
         </div>
@@ -495,6 +530,24 @@ export async function renderTicketDetail(container, queryString) {
         console.error(err);
         showToast('Erro ao finalizar chamado', 'error');
       }
+    });
+
+    // Criar Processo de Compra
+    document.getElementById('btnCreatePurchaseProcess')?.addEventListener('click', async () => {
+      try {
+        await createPurchaseProcess(ticketId);
+        showToast('Processo de compra criado com sucesso!', 'success');
+        await loadAllData();
+        renderPage();
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao criar processo de compra', 'error');
+      }
+    });
+
+    // Acessar Processo de Compra
+    document.getElementById('btnAccessPurchaseProcess')?.addEventListener('click', () => {
+      navigateTo(`/purchase-processes?ticketId=${ticketId}`);
     });
 
     // Colaboradores Form Show/Hide

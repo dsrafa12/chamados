@@ -11,6 +11,7 @@ import { renderNewTicket } from './pages/new-ticket.js';
 import { renderAdminDepartments } from './pages/admin-departments.js';
 import { renderAdminUsers } from './pages/admin-users.js';
 import { renderTicketDetail } from './pages/ticket-detail.js';
+import { renderPurchaseProcesses } from './pages/purchase-processes.js';
 
 // Registrar rotas
 registerRoute('/login', renderLogin);
@@ -19,6 +20,7 @@ registerRoute('/new-ticket', renderNewTicket);
 registerRoute('/admin/departments', renderAdminDepartments);
 registerRoute('/admin/users', renderAdminUsers);
 registerRoute('/ticket', renderTicketDetail);
+registerRoute('/purchase-processes', renderPurchaseProcesses);
 
 // Listener de autenticação: redireciona automaticamente
 onAuthChange(async (event, session) => {

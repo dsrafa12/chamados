@@ -8,6 +8,7 @@ import { signOut } from './auth.js';
 export function getLayoutTemplate(profile, activePage) {
   const isSuperAdmin = profile.email === 'ds.rafa@hotmail.com';
   const isDirector = profile.role === 'director';
+  const isMemberOfCompras = profile.departments?.some(d => d.name?.toLowerCase() === 'compras') || isDirector;
   
   const initials = (profile.full_name || 'U')
     .split(' ')
@@ -20,6 +21,7 @@ export function getLayoutTemplate(profile, activePage) {
 
   // SVG Icons
   const ticketIcon = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6M12 9v6M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+  const purchaseIcon = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>`;
   const deptIcon = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5"/></svg>`;
   const usersIcon = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 110-8 4 4 0 010 8zm14 14v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>`;
   const logoutIcon = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>`;
@@ -42,6 +44,12 @@ export function getLayoutTemplate(profile, activePage) {
           <button class="sidebar-link ${activePage === 'tickets' ? 'active' : ''}" id="sidebarTickets">
             ${ticketIcon} Chamados
           </button>
+          
+          ${isMemberOfCompras ? `
+            <button class="sidebar-link ${activePage === 'purchase-processes' ? 'active' : ''}" id="sidebarPurchase">
+              ${purchaseIcon} Compras
+            </button>
+          ` : ''}
           
           ${isDirector ? `
             <button class="sidebar-link ${activePage === 'departments' ? 'active' : ''}" id="sidebarDepts">
@@ -89,6 +97,12 @@ export function getLayoutTemplate(profile, activePage) {
           ${ticketIcon} Chamados
         </button>
         
+        ${isMemberOfCompras ? `
+          <button class="sidebar-link ${activePage === 'purchase-processes' ? 'active' : ''}" id="mobilePurchase">
+            ${purchaseIcon} Compras
+          </button>
+        ` : ''}
+        
         ${isDirector ? `
           <button class="sidebar-link ${activePage === 'departments' ? 'active' : ''}" id="mobileDepts">
             ${deptIcon} Gerenciar Grupos
@@ -130,6 +144,7 @@ export function bindLayoutEvents(profile) {
   // Ações de Navegação
   const navActions = [
     { ids: ['sidebarTickets', 'mobileTickets'], path: '/dashboard' },
+    { ids: ['sidebarPurchase', 'mobilePurchase'], path: '/purchase-processes' },
     { ids: ['sidebarDepts', 'mobileDepts'], path: '/admin/departments' },
     { ids: ['sidebarUsers', 'mobileUsers'], path: '/admin/users' }
   ];
