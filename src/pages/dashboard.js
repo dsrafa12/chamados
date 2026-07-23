@@ -2,7 +2,7 @@
  * Dashboard — Lista de Chamados com filtros e Sidebar
  */
 import { getCurrentProfile, fetchAllProfiles } from '../lib/auth.js';
-import { fetchTickets, updateTicketStatus, fetchTicketDetail, fetchTicketMessages, sendTicketMessage, fetchTicketCosts, addTicketCost, forwardTicket, fetchDepartments, updateTicketDeadline } from '../lib/api.js';
+import { fetchTickets, updateTicketStatus, fetchTicketDetail, fetchTicketMessages, sendTicketMessage, fetchTicketCosts, addTicketCost, forwardTicket, fetchDepartments, updateTicketDeadline, fetchTicketHistory } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
 import { getLayoutTemplate, bindLayoutEvents } from '../lib/layout.js';
@@ -579,11 +579,12 @@ export async function renderDashboard(container) {
         ticket.involved_user_ids?.includes(profile.id) ||
         isMemberOfDestinationDept;
 
-      // Carrega mensagens e custos iniciais
-      const [messages, costs, allDepts] = await Promise.all([
+      // Carrega mensagens, custos e histórico iniciais
+      const [messages, costs, allDepts, history] = await Promise.all([
         fetchTicketMessages(ticketId),
         fetchTicketCosts(ticketId),
-        fetchDepartments()
+        fetchDepartments(),
+        fetchTicketHistory(ticketId)
       ]);
 
       modalContainer.innerHTML = `
@@ -732,6 +733,16 @@ export async function renderDashboard(container) {
                   </div>
                 </div>
 
+                <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" />
+
+                <!-- Histórico de Atividades -->
+                <div>
+                  <h4 style="margin:0 0 10px 0;font-size:0.95rem;color:var(--text-secondary);">Histórico do Chamado</h4>
+                  <div id="ticketHistoryList" style="max-height:180px;overflow-y:auto;padding-right:4px;" class="history-timeline">
+                    <!-- Populado dinamicamente -->
+                  </div>
+                </div>
+
               </div>
 
               <!-- COLUNA DIREITA (CHAT DE MENSAGENS) -->
@@ -773,12 +784,26 @@ export async function renderDashboard(container) {
             padding-top: 20px !important;
           }
         }
+        .history-timeline {
+          position: relative;
+          padding-left: 24px;
+        }
+        .history-timeline::before {
+          content: '';
+          position: absolute;
+          left: 9px;
+          top: 6px;
+          bottom: 6px;
+          width: 2px;
+          background: var(--border);
+        }
       `;
       document.head.appendChild(styleSheet);
 
-      // Renderização inicial de mensagens e custos
+      // Renderização inicial de mensagens, custos e histórico
       renderCosts(costs);
       renderMessages(messages);
+      renderHistory(history);
 
       // Ouvinte para fechar o modal
       document.getElementById('closeModal')?.addEventListener('click', () => {
@@ -1032,6 +1057,54 @@ export async function renderDashboard(container) {
           `).join('') || '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;margin-top:40px;">Escreva uma mensagem para iniciar o chat.</p>';
           
           chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+      }
+
+      function renderHistory(historyList) {
+        const historyContainer = document.getElementById('ticketHistoryList');
+        if (historyContainer) {
+          historyContainer.innerHTML = historyList.map(h => {
+            const authorName = h.author?.full_name || 'Sistema';
+            
+            // Determinar ícone/cor com base no tipo de ação
+            let color = 'var(--text-muted)';
+            let icon = '⚙️';
+            
+            if (h.action === 'create') {
+              color = '#10b981';
+              icon = '➕';
+            } else if (h.action === 'start_service') {
+              color = '#3b82f6';
+              icon = '⚡';
+            } else if (h.action === 'resolve') {
+              color = '#10b981';
+              icon = '✅';
+            } else if (h.action === 'reopen') {
+              color = '#ef4444';
+              icon = '🔄';
+            } else if (h.action === 'forward') {
+              color = '#f59e0b';
+              icon = '➡️';
+            } else if (h.action === 'overdue') {
+              color = '#ef4444';
+              icon = '⏰';
+            } else if (h.action === 'cost_added') {
+              color = '#6366f1';
+              icon = '💵';
+            }
+
+            return `
+              <div class="history-item" style="margin-bottom: 16px; position: relative;">
+                <span class="history-icon" style="position: absolute; left: -25px; top: 1px; background: ${color}; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; border: 2px solid var(--bg-card);">${icon}</span>
+                <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.4;">
+                  <strong>${escapeHtml(authorName)}</strong> ${escapeHtml(h.description)}
+                </div>
+                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
+                  ${formatDate(h.created_at)}
+                </div>
+              </div>
+            `;
+          }).join('') || '<p style="color:var(--text-muted);font-size:0.85rem;margin-top:6px;">Nenhuma atividade registrada.</p>';
         }
       }
 

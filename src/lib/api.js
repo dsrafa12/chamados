@@ -350,4 +350,19 @@ export async function updateTicketDeadline(ticketId, newDeadline) {
   if (error) throw error;
 }
 
+/** Busca o histórico de auditoria de um chamado */
+export async function fetchTicketHistory(ticketId) {
+  const { data, error } = await supabase
+    .from('ticket_history')
+    .select(`
+      *,
+      author:profiles!profile_id(full_name)
+    `)
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data;
+}
+
 
