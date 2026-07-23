@@ -481,10 +481,7 @@ export async function renderDashboard(container) {
           </div>
         </td>
         <td>
-          <div style="display:flex; flex-direction:column; gap:3px;">
-            <span style="font-weight:700; color:var(--text-secondary); font-size:0.95rem;">${escapeHtml(originDeptName)}</span>
-            <span style="font-size:0.88rem; color:var(--text-muted);">${escapeHtml(t.creator?.full_name || '—')}</span>
-          </div>
+          <span style="font-weight:600; color:var(--text-secondary); font-size:0.95rem;">${escapeHtml(t.creator?.full_name || '—')}</span>
         </td>
         <td>
           <span style="font-weight:600; color:var(--text-secondary); font-size:0.95rem;">${escapeHtml(destinationName)}</span>
@@ -579,12 +576,13 @@ export async function renderDashboard(container) {
         ticket.involved_user_ids?.includes(profile.id) ||
         isMemberOfDestinationDept;
 
-      // Carrega mensagens, custos e histórico iniciais
-      const [messages, costs, allDepts, history] = await Promise.all([
+      // Carrega mensagens, custos, histórico e todos os colaboradores
+      const [messages, costs, allDepts, history, allProfiles] = await Promise.all([
         fetchTicketMessages(ticketId),
         fetchTicketCosts(ticketId),
         fetchDepartments(),
-        fetchTicketHistory(ticketId)
+        fetchTicketHistory(ticketId),
+        fetchAllProfiles()
       ]);
 
       modalContainer.innerHTML = `
@@ -598,7 +596,7 @@ export async function renderDashboard(container) {
               </div>
               <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                 ${canChangeStatus ? `
-                  <button class="btn btn-sm" id="btnEncaminhar" style="background:#f59e0b;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Encaminhar</button>
+                  <button class="btn btn-sm" id="btnCollaborators" style="background:#6366f1;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Colaboradores</button>
                   ${ticket.status === 'open' ? `
                     <button class="btn btn-sm" id="btnStartService" style="background:#3b82f6;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Iniciar Atendimento</button>
                   ` : ''}
@@ -616,16 +614,27 @@ export async function renderDashboard(container) {
               <!-- COLUNA ESQUERDA (INFORMAÇÕES E CUSTOS) -->
               <div style="display:flex;flex-direction:column;gap:18px;">
                 
-                <!-- Formulário de Encaminhamento Rápido (Colapsado por padrão) -->
-                <div id="forwardForm" style="display:none;flex-direction:column;gap:10px;padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--bg-app);margin-bottom:10px;">
-                  <label style="font-size:0.85rem;font-weight:600;color:var(--text-primary);">Selecione o Grupo de Destino</label>
-                  <select id="forwardDeptSelect" class="select" style="font-size:0.88rem;padding:8px 12px;background:var(--bg-card);">
-                    <option value="">Selecione um grupo...</option>
-                    ${allDepts.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
-                  </select>
+                <!-- Formulário de Gerenciamento de Colaboradores (Colapsado por padrão) -->
+                <div id="collaboratorsForm" style="display:none;flex-direction:column;gap:14px;padding:18px;border:1px solid var(--border);border-radius:12px;background:var(--bg-app);margin-bottom:10px;box-shadow:var(--shadow-sm);">
+                  <h4 style="margin:0;font-size:0.95rem;color:var(--text-primary);font-weight:700;">Colaboradores Atrelados</h4>
+                  
+                  <!-- Lista de pessoas já atreladas -->
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;" id="linkedCollaboratorsList">
+                    <!-- Populada dinamicamente -->
+                  </div>
+                  
+                  <hr style="border:none;border-top:1px solid var(--border);margin:2px 0;" />
+                  
+                  <label style="font-size:0.88rem;font-weight:700;color:var(--text-secondary);">Atrelar Mais Colaboradores</label>
+                  <div style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);" id="availableCollaboratorsList">
+                    <!-- Lista de checkboxes. Os já atrelados ficam desabilitados e marcados -->
+                  </div>
+                  
                   <div style="display:flex;gap:10px;margin-top:4px;">
-                    <button class="btn btn-sm btn-primary" id="saveForwardBtn">Salvar</button>
-                    <button class="btn btn-sm btn-secondary" id="cancelForwardBtn">Cancelar</button>
+                    <button class="btn btn-sm btn-primary" id="saveCollaboratorsBtn">Salvar Alterações</button>
+                    <button class="btn btn-sm btn-secondary" id="cancelCollaboratorsBtn">Cancelar</button>
+                  </div>
+                </div>
                   </div>
                 </div>
 
@@ -840,29 +849,68 @@ export async function renderDashboard(container) {
         }
       });
 
-      // Fluxo colapsável do Encaminhar
-      const forwardForm = document.getElementById('forwardForm');
-      document.getElementById('btnEncaminhar')?.addEventListener('click', () => {
-        if (forwardForm) forwardForm.style.display = forwardForm.style.display === 'none' ? 'flex' : 'none';
+      // Renderizar listas de colaboradores
+      const linkedListContainer = document.getElementById('linkedCollaboratorsList');
+      const availableListContainer = document.getElementById('availableCollaboratorsList');
+      
+      if (linkedListContainer && availableListContainer) {
+        // Renderizar quem já está atrelado
+        const creatorBadge = `
+          <span style="background:var(--primary-light);color:var(--primary);font-size:0.8rem;padding:6px 12px;border-radius:20px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+            👑 ${escapeHtml(ticket.creator?.full_name || 'Autor')}
+          </span>
+        `;
+        const otherBadges = ticket.ticket_users
+          ?.filter(tu => tu.profile && tu.profile.id !== ticket.created_by)
+          .map(tu => `
+            <span style="background:var(--bg-app);color:var(--text-primary);font-size:0.8rem;padding:6px 12px;border-radius:20px;font-weight:500;border:1px solid var(--border);display:inline-flex;align-items:center;gap:4px;">
+              👤 ${escapeHtml(tu.profile.full_name || 'Colaborador')}
+            </span>
+          `).join('') || '';
+        
+        linkedListContainer.innerHTML = creatorBadge + otherBadges;
+
+        // Renderizar checklist de disponíveis
+        const otherProfiles = allProfiles.filter(p => p.id !== ticket.created_by);
+        availableListContainer.innerHTML = otherProfiles.map(p => {
+          const isAlreadyLinked = ticket.involved_user_ids?.includes(p.id);
+          return `
+            <label style="display:flex;align-items:center;gap:10px;padding:6px 8px;font-size:0.88rem;cursor:${isAlreadyLinked ? 'not-allowed' : 'pointer'};opacity:${isAlreadyLinked ? '0.7' : '1'};border-bottom:1px dashed var(--border);width:100%;">
+              <input type="checkbox" value="${p.id}" ${isAlreadyLinked ? 'checked disabled' : ''} class="new-collab-checkbox" style="width:16px;height:16px;cursor:${isAlreadyLinked ? 'not-allowed' : 'pointer'};" />
+              <span>${escapeHtml(p.full_name || p.email)}</span>
+            </label>
+          `;
+        }).join('');
+      }
+
+      // Eventos dos botões de Colaboradores
+      const collaboratorsForm = document.getElementById('collaboratorsForm');
+      document.getElementById('btnCollaborators')?.addEventListener('click', () => {
+        if (collaboratorsForm) {
+          collaboratorsForm.style.display = collaboratorsForm.style.display === 'none' ? 'flex' : 'none';
+        }
       });
 
-      document.getElementById('cancelForwardBtn')?.addEventListener('click', () => {
-        if (forwardForm) forwardForm.style.display = 'none';
+      document.getElementById('cancelCollaboratorsBtn')?.addEventListener('click', () => {
+        if (collaboratorsForm) collaboratorsForm.style.display = 'none';
       });
 
-      document.getElementById('saveForwardBtn')?.addEventListener('click', async () => {
-        const deptId = document.getElementById('forwardDeptSelect')?.value;
-        if (!deptId) {
-          showToast('Selecione um grupo de destino', 'error');
+      document.getElementById('saveCollaboratorsBtn')?.addEventListener('click', async () => {
+        const checkedBoxes = document.querySelectorAll('.new-collab-checkbox:checked:not([disabled])');
+        const newIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+        if (newIds.length === 0) {
+          showToast('Nenhum novo colaborador selecionado', 'info');
           return;
         }
+
         try {
-          await forwardTicket(ticketId, deptId);
-          showToast('Chamado encaminhado com sucesso!', 'success');
+          await addTicketCollaborators(ticketId, newIds);
+          showToast('Colaborador(es) atrelado(s) com sucesso!', 'success');
           openTicketDetail(ticketId);
         } catch (err) {
           console.error(err);
-          showToast('Erro ao encaminhar chamado', 'error');
+          showToast('Erro ao atrelar colaborador(es)', 'error');
         }
       });
 

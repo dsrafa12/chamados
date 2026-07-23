@@ -365,4 +365,20 @@ export async function fetchTicketHistory(ticketId) {
   return data;
 }
 
+/** Adiciona novos colaboradores a um chamado */
+export async function addTicketCollaborators(ticketId, profileIds) {
+  if (!profileIds || profileIds.length === 0) return;
+  const rows = profileIds.map(pId => ({
+    ticket_id: ticketId,
+    profile_id: pId
+  }));
+  const { error } = await supabase
+    .from('ticket_users')
+    .insert(rows);
+  
+  if (error && !error.message?.includes('duplicate key')) {
+    throw error;
+  }
+}
+
 
