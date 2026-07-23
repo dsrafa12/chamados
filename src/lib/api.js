@@ -57,8 +57,7 @@ export async function fetchTickets(filters = {}) {
       .from('tickets')
       .update({ status: 'overdue' })
       .lt('deadline', new Date().toISOString())
-      .not('status', 'eq', 'resolved')
-      .not('status', 'eq', 'overdue');
+      .eq('status', 'open');
   } catch (err) {
     console.error('Erro ao atualizar chamados vencidos:', err);
   }
@@ -206,8 +205,7 @@ export async function fetchTicketDetail(ticketId) {
       .update({ status: 'overdue' })
       .eq('id', ticketId)
       .lt('deadline', new Date().toISOString())
-      .not('status', 'eq', 'resolved')
-      .not('status', 'eq', 'overdue');
+      .eq('status', 'open');
   } catch (err) {
     console.error('Erro ao atualizar status vencido:', err);
   }

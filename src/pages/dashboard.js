@@ -163,6 +163,13 @@ export async function renderDashboard(container) {
           border-radius: 20px !important;
           font-weight: bold;
         }
+        .tickets-table .badge-in_progress_overdue {
+          background: linear-gradient(135deg, #3b82f6 50%, #ef4444 50%) !important;
+          color: white !important;
+          border-radius: 20px !important;
+          font-weight: bold;
+          text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
         .tickets-table .badge-resolved {
           background: #10b981 !important;
           color: white !important;
@@ -460,7 +467,21 @@ export async function renderDashboard(container) {
 
   function renderTableRow(t) {
     const dateOnly = t.created_at ? new Date(t.created_at).toLocaleDateString('pt-BR') : '—';
-    const statusLabel = t.status === 'open' ? 'Pendente' : STATUS_LABELS[t.status];
+    
+    const isOverdue = t.deadline && new Date(t.deadline) < new Date();
+    let statusClass = t.status;
+    let statusLabel = STATUS_LABELS[t.status];
+    
+    if (t.status === 'open') {
+      statusLabel = 'Pendente';
+    } else if (t.status === 'overdue') {
+      statusLabel = 'Atrasado';
+    }
+    
+    if (t.status === 'in_progress' && isOverdue) {
+      statusClass = 'in_progress_overdue';
+      statusLabel = 'Em Atendimento (Atrasado)';
+    }
 
     // Determinar destino (grupo ou colaboradores)
     let destinationName = t.destination?.name;
@@ -492,7 +513,7 @@ export async function renderDashboard(container) {
           <span class="badge badge-${t.priority}" style="min-width:80px; padding:6px 12px; font-size:0.85rem; border-radius:10px; display:inline-block;">${PRIORITY_LABELS[t.priority]}</span>
         </td>
         <td style="text-align:center;">
-          <span class="badge badge-${t.status}" style="min-width:125px; padding:6px 12px; font-size:0.85rem; display:inline-block; white-space:nowrap;">${statusLabel}</span>
+          <span class="badge badge-${statusClass}" style="min-width:125px; padding:6px 12px; font-size:0.85rem; display:inline-block; white-space:nowrap;">${statusLabel}</span>
         </td>
       </tr>
     `;

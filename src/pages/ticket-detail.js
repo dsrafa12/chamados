@@ -95,6 +95,21 @@ export async function renderTicketDetail(container, queryString) {
       ticket.involved_user_ids?.includes(profile.id) ||
       isMemberOfDestinationDept;
 
+    const isOverdue = ticket.deadline && new Date(ticket.deadline) < new Date();
+    let statusClass = ticket.status;
+    let statusLabel = STATUS_LABELS[ticket.status];
+    
+    if (ticket.status === 'open') {
+      statusLabel = 'Pendente';
+    } else if (ticket.status === 'overdue') {
+      statusLabel = 'Atrasado';
+    }
+    
+    if (ticket.status === 'in_progress' && isOverdue) {
+      statusClass = 'in_progress_overdue';
+      statusLabel = 'Em Atendimento (Atrasado)';
+    }
+
     mainContent.innerHTML = `
       <main class="page" style="max-width:1200px; margin: 0 auto; padding-top: 48px !important;">
         
@@ -110,7 +125,7 @@ export async function renderTicketDetail(container, queryString) {
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
             ${canChangeStatus ? `
               <button class="btn btn-sm" id="btnCollaborators" style="background:#6366f1;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Colaboradores</button>
-              ${ticket.status === 'open' ? `
+              ${(ticket.status === 'open' || ticket.status === 'overdue') ? `
                 <button class="btn btn-sm" id="btnStartService" style="background:#3b82f6;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Iniciar Atendimento</button>
               ` : ''}
               ${ticket.status !== 'resolved' ? `
@@ -202,7 +217,7 @@ export async function renderTicketDetail(container, queryString) {
               <div style="display:flex;gap:16px;margin-top:20px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:16px;">
                 <div style="display:flex;align-items:center;gap:6px;">
                   <span style="color:var(--text-muted);font-size:0.9rem;">Status:</span>
-                  <span class="badge badge-${ticket.status}">${STATUS_LABELS[ticket.status]}</span>
+                  <span class="badge badge-${statusClass}">${statusLabel}</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;">
                   <span style="color:var(--text-muted);font-size:0.9rem;">Prioridade:</span>
@@ -294,6 +309,13 @@ export async function renderTicketDetail(container, queryString) {
         bottom: 6px;
         width: 2px;
         background: var(--border);
+      }
+      .badge-in_progress_overdue {
+        background: linear-gradient(135deg, #3b82f6 50%, #ef4444 50%) !important;
+        color: white !important;
+        border-radius: 20px !important;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
       }
       @media (max-width: 900px) {
         .ticket-detail-grid {
