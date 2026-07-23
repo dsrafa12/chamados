@@ -186,8 +186,7 @@ export async function updateTicketStatus(ticketId, newStatus) {
   const { data, error } = await supabase
     .from('tickets')
     .update({ 
-      status: newStatus,
-      updated_at: new Date().toISOString()
+      status: newStatus
     })
     .eq('id', ticketId)
     .select()
