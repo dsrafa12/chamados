@@ -133,8 +133,11 @@ export async function renderTicketDetail(container, queryString) {
                 <!-- Badges -->
               </div>
               <hr style="border:none;border-top:1px solid var(--border);margin:2px 0;" />
-              <label style="font-size:0.88rem;font-weight:700;color:var(--text-secondary);">Atrelar Mais Colaboradores</label>
-              <div style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);" id="availableCollaboratorsList">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+                <label style="font-size:0.88rem;font-weight:700;color:var(--text-secondary);">Atrelar Mais Colaboradores</label>
+                <input type="text" id="searchCollaboratorInput" class="input" placeholder="🔍 Buscar colaborador..." style="font-size:0.82rem;padding:6px 12px;background:var(--bg-card);border-radius:6px;border:1px solid var(--border);max-width:220px;" />
+              </div>
+              <div style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);" id="availableCollaboratorsList">
                 <!-- Checkboxes -->
               </div>
               <div style="display:flex;gap:10px;margin-top:4px;">
@@ -471,6 +474,19 @@ export async function renderTicketDetail(container, queryString) {
 
     document.getElementById('cancelCollaboratorsBtn')?.addEventListener('click', () => {
       if (collaboratorsForm) collaboratorsForm.style.display = 'none';
+    });
+
+    document.getElementById('searchCollaboratorInput')?.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      const labels = document.querySelectorAll('#availableCollaboratorsList label');
+      labels.forEach(label => {
+        const text = label.textContent.toLowerCase();
+        if (text.includes(query)) {
+          label.style.display = 'flex';
+        } else {
+          label.style.display = 'none';
+        }
+      });
     });
 
     document.getElementById('saveCollaboratorsBtn')?.addEventListener('click', async () => {
