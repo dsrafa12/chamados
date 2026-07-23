@@ -500,6 +500,13 @@ export async function renderDashboard(container) {
       ? `Colaboradores atrelados:\n${linkedCollabs.map(name => `• ${name}`).join('\n')}`
       : 'Nenhum colaborador atrelado';
 
+    let badgeStyle = `min-width:125px; padding:6px 12px; font-size:0.85rem; display:inline-block; white-space:nowrap;`;
+    let labelHtml = escapeHtml(statusLabel);
+    if (statusClass === 'in_progress_overdue') {
+      badgeStyle = `min-width:125px; padding:4px 8px; font-size:0.72rem; display:inline-block; white-space:normal; line-height:1.15;`;
+      labelHtml = `Em Atendimento<br>(Atrasado)`;
+    }
+
     return `
       <tr class="clickable-row" data-ticket-id="${t.id}">
         <td>
@@ -521,7 +528,7 @@ export async function renderDashboard(container) {
           <span class="badge badge-${t.priority}" style="min-width:80px; padding:6px 12px; font-size:0.85rem; border-radius:10px; display:inline-block;">${PRIORITY_LABELS[t.priority]}</span>
         </td>
         <td style="text-align:center;">
-          <span class="badge badge-${statusClass}" style="min-width:125px; padding:6px 12px; font-size:0.85rem; display:inline-block; white-space:nowrap;">${statusLabel}</span>
+          <span class="badge badge-${statusClass}" style="${badgeStyle}">${labelHtml}</span>
         </td>
       </tr>
     `;

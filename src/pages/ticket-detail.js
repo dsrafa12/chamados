@@ -114,6 +114,13 @@ export async function renderTicketDetail(container, queryString) {
       statusLabel = 'Em Atendimento (Atrasado)';
     }
 
+    let detailBadgeStyle = '';
+    let detailLabelHtml = escapeHtml(statusLabel);
+    if (statusClass === 'in_progress_overdue') {
+      detailBadgeStyle = 'font-size:0.72rem; line-height:1.15; padding:4px 8px; white-space:normal; text-align:center; display:inline-block; max-width:125px;';
+      detailLabelHtml = `Em Atendimento<br>(Atrasado)`;
+    }
+
     mainContent.innerHTML = `
       <main class="page" style="max-width:1200px; margin: 0 auto; padding-top: 48px !important;">
         
@@ -221,7 +228,7 @@ export async function renderTicketDetail(container, queryString) {
               <div style="display:flex;gap:16px;margin-top:20px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:16px;">
                 <div style="display:flex;align-items:center;gap:6px;">
                   <span style="color:var(--text-muted);font-size:0.9rem;">Status:</span>
-                  <span class="badge badge-${statusClass}">${statusLabel}</span>
+                  <span class="badge badge-${statusClass}" style="${detailBadgeStyle}">${detailLabelHtml}</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;">
                   <span style="color:var(--text-muted);font-size:0.9rem;">Prioridade:</span>
