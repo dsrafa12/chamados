@@ -492,6 +492,14 @@ export async function renderDashboard(container) {
       destinationName = collaborators.map(c => c.full_name).join(', ') || 'Colaborador(es)';
     }
 
+    // Obter lista de colaboradores atrelados para o tooltip de Destino
+    const linkedCollabs = t.ticket_users
+      ?.map(tu => tu.profile?.full_name)
+      .filter(Boolean) || [];
+    const tooltipText = linkedCollabs.length > 0 
+      ? `Colaboradores atrelados:\n${linkedCollabs.map(name => `• ${name}`).join('\n')}`
+      : 'Nenhum colaborador atrelado';
+
     return `
       <tr class="clickable-row" data-ticket-id="${t.id}">
         <td>
@@ -503,8 +511,8 @@ export async function renderDashboard(container) {
         <td>
           <span style="font-weight:600; color:var(--text-secondary); font-size:0.95rem;">${escapeHtml(t.creator?.full_name || '—')}</span>
         </td>
-        <td>
-          <span style="font-weight:600; color:var(--text-secondary); font-size:0.95rem;">${escapeHtml(destinationName)}</span>
+        <td title="${escapeHtml(tooltipText)}">
+          <span style="font-weight:600; color:var(--text-secondary); font-size:0.95rem; cursor:help;">${escapeHtml(destinationName)}</span>
         </td>
         <td>
           <span style="color:var(--text-secondary); font-size:0.95rem; font-weight:500;">${dateOnly}</span>
