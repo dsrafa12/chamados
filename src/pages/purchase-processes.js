@@ -140,7 +140,7 @@ export async function renderPurchaseProcesses(container, queryString) {
       </main>
 
       <!-- MODAL DE STATUS -->
-      <div id="statusModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1100; align-items:center; justify-content:center;">
+      <div id="statusModal" class="modal-container" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1100; align-items:center; justify-content:center;">
         <div class="card" style="width:100%; max-width:500px; padding:24px; position:relative; box-shadow:var(--shadow-lg); animation: slideUp 0.25s ease-out;">
           <button id="closeModalBtn" style="position:absolute; top:20px; right:20px; background:transparent; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);" title="Fechar">✕</button>
           
@@ -171,7 +171,10 @@ export async function renderPurchaseProcesses(container, queryString) {
         from { transform: translateY(20px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
-      .modal {
+      .modal-container {
+        display: none;
+      }
+      .modal-container.open {
         display: flex !important;
       }
     `;
@@ -264,7 +267,7 @@ export async function renderPurchaseProcesses(container, queryString) {
     const closeBtns = ['closeModalBtn', 'modalCancelBtn'];
     closeBtns.forEach(id => {
       document.getElementById(id)?.addEventListener('click', () => {
-        if (modal) modal.style.display = 'none';
+        if (modal) modal.classList.remove('open');
       });
     });
 
@@ -294,7 +297,7 @@ export async function renderPurchaseProcesses(container, queryString) {
         await updatePurchaseProcessStatus(selectedProcess.id, newStatus);
         showToast('Status do processo atualizado com sucesso!', 'success');
         
-        if (modal) modal.style.display = 'none';
+        if (modal) modal.classList.remove('open');
         await loadData();
       } catch (err) {
         console.error(err);
@@ -317,7 +320,7 @@ export async function renderPurchaseProcesses(container, queryString) {
       title.textContent = `Processo Chamado Nº ${process.ticket?.ticket_number || ''}`;
       subtitle.textContent = `Ajuste o status de compras para o chamado "${process.ticket?.title || ''}"`;
       select.value = process.status;
-      modal.style.display = 'flex';
+      modal.classList.add('open');
     }
   }
 
