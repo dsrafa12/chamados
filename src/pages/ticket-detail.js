@@ -53,12 +53,14 @@ export async function renderTicketDetail(container, queryString) {
     try {
       ticket = await fetchTicketDetail(ticketId);
       const isMemberOfDestinationDept = profile.departments?.some(d => d.id === ticket.destination_department_id);
+      const isMemberOfOriginDept = profile.departments?.some(d => d.id === ticket.origin_department_id);
       
       const canChangeStatus =
         ticket.created_by === profile.id ||
         profile.role === 'director' ||
         ticket.involved_user_ids?.includes(profile.id) ||
-        isMemberOfDestinationDept;
+        isMemberOfDestinationDept ||
+        isMemberOfOriginDept;
 
       if (!canChangeStatus && profile.role !== 'director') {
         // Se o usuário não tiver permissão para ver ou interagir, redireciona
@@ -89,11 +91,13 @@ export async function renderTicketDetail(container, queryString) {
     // 2. Injeta o conteúdo principal
     const mainContent = document.getElementById('mainContent');
     const isMemberOfDestinationDept = profile.departments?.some(d => d.id === ticket.destination_department_id);
+    const isMemberOfOriginDept = profile.departments?.some(d => d.id === ticket.origin_department_id);
     const canChangeStatus =
       ticket.created_by === profile.id ||
       profile.role === 'director' ||
       ticket.involved_user_ids?.includes(profile.id) ||
-      isMemberOfDestinationDept;
+      isMemberOfDestinationDept ||
+      isMemberOfOriginDept;
 
     const isOverdue = ticket.deadline && new Date(ticket.deadline) < new Date();
     let statusClass = ticket.status;
