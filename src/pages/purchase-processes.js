@@ -11,7 +11,7 @@ import { showToast } from '../lib/toast.js';
 import { getLayoutTemplate, bindLayoutEvents } from '../lib/layout.js';
 
 const STATUS_LABELS = {
-  awaiting_start: 'Aguardando Início',
+  awaiting_start: 'Gerado Processo de Compra',
   in_analysis: 'Em Análise',
   awaiting_info: 'Aguardando Informações',
   in_quotation: 'Em Cotação',

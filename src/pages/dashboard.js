@@ -13,7 +13,7 @@ const STATUS_LABELS = {
   in_progress: 'Em Andamento', 
   resolved: 'Resolvido', 
   overdue: 'Atrasado',
-  awaiting_start: 'Aguardando Início',
+  awaiting_start: 'Gerado Processo de Compra',
   in_analysis: 'Em Análise',
   awaiting_info: 'Aguardando Informações',
   in_quotation: 'Em Cotação',

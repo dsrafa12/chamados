@@ -120,7 +120,7 @@ BEGIN
       -- Novos status do processo de compra
       ELSIF NEW.status = 'awaiting_start' THEN
         INSERT INTO public.ticket_history (ticket_id, profile_id, action, description)
-        VALUES (NEW.id, auth.uid(), 'purchase_status', 'Alterou o status do processo de compra para: Aguardando Início');
+        VALUES (NEW.id, auth.uid(), 'purchase_status', 'Alterou o status do processo de compra para: Gerado Processo de Compra');
       ELSIF NEW.status = 'in_analysis' THEN
         INSERT INTO public.ticket_history (ticket_id, profile_id, action, description)
         VALUES (NEW.id, auth.uid(), 'purchase_status', 'Alterou o status do processo de compra para: Em Análise');
