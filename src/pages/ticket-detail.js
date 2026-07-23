@@ -317,7 +317,7 @@ export async function renderTicketDetail(container, queryString) {
       // Renderizar quem já está atrelado
       const creatorBadge = `
         <span style="background:var(--primary-light);color:var(--primary);font-size:0.8rem;padding:6px 12px;border-radius:20px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
-          👑 ${escapeHtml(ticket.creator?.full_name || 'Autor')}
+          ✍️ ${escapeHtml(ticket.creator?.full_name || 'Autor')} (Autor)
         </span>
       `;
       const otherBadges = ticket.ticket_users
