@@ -19,7 +19,8 @@ export function getCurrentRoute() {
 }
 
 async function handleRouteChange() {
-  const path = getCurrentRoute();
+  const hash = getCurrentRoute();
+  const [path, queryString] = hash.split('?');
   const app = document.getElementById('app');
 
   // Cleanup da página anterior (remover listeners, etc)
@@ -30,7 +31,7 @@ async function handleRouteChange() {
 
   const handler = routes[path];
   if (handler) {
-    currentCleanup = await handler(app);
+    currentCleanup = await handler(app, queryString);
   } else {
     // Fallback: redireciona para login
     navigateTo('/login');

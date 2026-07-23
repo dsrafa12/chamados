@@ -2,7 +2,7 @@
  * Dashboard — Lista de Chamados com filtros e Sidebar
  */
 import { getCurrentProfile, fetchAllProfiles } from '../lib/auth.js';
-import { fetchTickets, updateTicketStatus, fetchTicketDetail, fetchTicketMessages, sendTicketMessage, fetchTicketCosts, addTicketCost, forwardTicket, fetchDepartments, updateTicketDeadline, fetchTicketHistory } from '../lib/api.js';
+import { fetchTickets, fetchDepartments } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
 import { getLayoutTemplate, bindLayoutEvents } from '../lib/layout.js';
@@ -61,6 +61,11 @@ export async function renderDashboard(container) {
     const mainContent = document.getElementById('mainContent');
     const needsSetup = !profile.department_id && (!profile.departments || profile.departments.length === 0);
 
+    // Contagem de status para os cards superiores
+    const totalPending = tickets.filter(t => t.status === 'open').length;
+    const totalInProgress = tickets.filter(t => t.status === 'in_progress').length;
+    const totalOverdue = tickets.filter(t => t.status === 'overdue').length;
+
     mainContent.innerHTML = `
       <style>
         /* Forçar a página e a tabela a usarem a largura máxima disponível */
@@ -78,8 +83,6 @@ export async function renderDashboard(container) {
             display: none !important;
           }
         }
-        
-        /* Estilos de visualização única em lista removendo Kanban */
         
         /* Estilos de Tabela Premium */
         .tickets-table-container {
@@ -313,7 +316,7 @@ export async function renderDashboard(container) {
               <!-- Card de Pendentes -->
               <div class="pending-badge-card">
                 <div class="pending-badge-card-number">
-                  ${loadingTickets ? '...' : tickets.filter(t => t.status === 'open').length}
+                  ${totalPending}
                 </div>
                 <div>
                   <span class="pending-badge-card-label">Chamados</span>
@@ -324,7 +327,7 @@ export async function renderDashboard(container) {
               <!-- Card de Em Atendimento -->
               <div class="progress-badge-card">
                 <div class="progress-badge-card-number">
-                  ${loadingTickets ? '...' : tickets.filter(t => t.status === 'in_progress').length}
+                  ${totalInProgress}
                 </div>
                 <div>
                   <span class="progress-badge-card-label">Chamados</span>
@@ -335,7 +338,7 @@ export async function renderDashboard(container) {
               <!-- Card de Atrasados -->
               <div class="overdue-badge-card">
                 <div class="overdue-badge-card-number">
-                  ${loadingTickets ? '...' : tickets.filter(t => t.status === 'overdue').length}
+                  ${totalOverdue}
                 </div>
                 <div>
                   <span class="overdue-badge-card-label">Chamados</span>
@@ -398,9 +401,6 @@ export async function renderDashboard(container) {
 
       <!-- FAB Mobile -->
       <button class="fab" id="fabNewTicket" title="Abrir Chamado" style="background:#059669;">＋</button>
-
-      <!-- Modal de detalhes -->
-      <div id="ticketModal"></div>
     `;
 
     bindLayoutEvents(profile);
@@ -459,7 +459,6 @@ export async function renderDashboard(container) {
   }
 
   function renderTableRow(t) {
-    const originDeptName = t.creator?.department?.name || 'Diretoria';
     const dateOnly = t.created_at ? new Date(t.created_at).toLocaleDateString('pt-BR') : '—';
     const statusLabel = t.status === 'open' ? 'Pendente' : STATUS_LABELS[t.status];
 
@@ -515,24 +514,22 @@ export async function renderDashboard(container) {
 
     document.getElementById('filterAuthor')?.addEventListener('change', (e) => {
       filters.authorId = e.target.value;
-      // Atualização rápida de UI no frontend
       const listContainer = document.getElementById('ticketsList');
       if (listContainer) {
         listContainer.innerHTML = renderTicketsList();
         listContainer.querySelectorAll('[data-ticket-id]').forEach(card => {
-          card.addEventListener('click', () => openTicketDetail(card.dataset.ticketId));
+          card.addEventListener('click', () => navigateTo('/ticket?id=' + card.dataset.ticketId));
         });
       }
     });
 
     document.getElementById('searchTickets')?.addEventListener('input', (e) => {
       filters.searchQuery = e.target.value;
-      // Busca em tempo real instantânea no frontend
       const listContainer = document.getElementById('ticketsList');
       if (listContainer) {
         listContainer.innerHTML = renderTicketsList();
         listContainer.querySelectorAll('[data-ticket-id]').forEach(card => {
-          card.addEventListener('click', () => openTicketDetail(card.dataset.ticketId));
+          card.addEventListener('click', () => navigateTo('/ticket?id=' + card.dataset.ticketId));
         });
       }
     });
@@ -549,11 +546,9 @@ export async function renderDashboard(container) {
       });
     });
 
-
-
     // Clique no card do ticket
     document.querySelectorAll('[data-ticket-id]').forEach(card => {
-      card.addEventListener('click', () => openTicketDetail(card.dataset.ticketId));
+      card.addEventListener('click', () => navigateTo('/ticket?id=' + card.dataset.ticketId));
     });
 
     // Setup department
@@ -561,605 +556,6 @@ export async function renderDashboard(container) {
       navigateTo('/login');
       showToast('Faça login novamente para atualizar seus dados', 'info');
     });
-  }
-
-  async function openTicketDetail(ticketId) {
-    const modalContainer = document.getElementById('ticketModal');
-    if (!modalContainer) return;
-
-    try {
-      const ticket = await fetchTicketDetail(ticketId);
-      const isMemberOfDestinationDept = profile.departments?.some(d => d.id === ticket.destination_department_id);
-      const canChangeStatus =
-        ticket.created_by === profile.id ||
-        profile.role === 'director' ||
-        ticket.involved_user_ids?.includes(profile.id) ||
-        isMemberOfDestinationDept;
-
-      // Carrega mensagens, custos, histórico e todos os colaboradores
-      const [messages, costs, allDepts, history, allProfiles] = await Promise.all([
-        fetchTicketMessages(ticketId),
-        fetchTicketCosts(ticketId),
-        fetchDepartments(),
-        fetchTicketHistory(ticketId),
-        fetchAllProfiles()
-      ]);
-
-      modalContainer.innerHTML = `
-        <div class="modal-overlay" id="modalOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:1000;">
-          <div class="modal-content" style="background:var(--bg-card);border-radius:16px;width:95%;max-width:1100px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;padding:24px;border:1px solid var(--border);">
-            
-            <!-- HEADER DO MODAL -->
-            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:20px;flex-wrap:wrap;gap:16px;">
-              <div>
-                <h2 style="margin:0;font-size:1.4rem;color:var(--text-primary);">Chamado Nº: ${ticket.ticket_number || ticket.id.slice(0, 8).toUpperCase()}</h2>
-              </div>
-              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                ${canChangeStatus ? `
-                  <button class="btn btn-sm" id="btnCollaborators" style="background:#6366f1;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Colaboradores</button>
-                  ${ticket.status === 'open' ? `
-                    <button class="btn btn-sm" id="btnStartService" style="background:#3b82f6;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Iniciar Atendimento</button>
-                  ` : ''}
-                  ${ticket.status !== 'resolved' ? `
-                    <button class="btn btn-sm" id="btnFinishTicket" style="background:#059669;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Finalizar Chamado</button>
-                  ` : ''}
-                ` : ''}
-                <button class="modal-close" id="closeModal" style="background:transparent;border:none;font-size:1.4rem;cursor:pointer;color:var(--text-muted);padding:4px 8px;">✕</button>
-              </div>
-            </div>
-
-            <!-- CORPO DO MODAL (DUAS COLUNAS) -->
-            <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:32px;flex:1;min-height:0;flex-wrap:wrap;" class="modal-grid-layout">
-              
-              <!-- COLUNA ESQUERDA (INFORMAÇÕES E CUSTOS) -->
-              <div style="display:flex;flex-direction:column;gap:18px;">
-                
-                <!-- Formulário de Gerenciamento de Colaboradores (Colapsado por padrão) -->
-                <div id="collaboratorsForm" style="display:none;flex-direction:column;gap:14px;padding:18px;border:1px solid var(--border);border-radius:12px;background:var(--bg-app);margin-bottom:10px;box-shadow:var(--shadow-sm);">
-                  <h4 style="margin:0;font-size:0.95rem;color:var(--text-primary);font-weight:700;">Colaboradores Atrelados</h4>
-                  
-                  <!-- Lista de pessoas já atreladas -->
-                  <div style="display:flex;flex-wrap:wrap;gap:8px;" id="linkedCollaboratorsList">
-                    <!-- Populada dinamicamente -->
-                  </div>
-                  
-                  <hr style="border:none;border-top:1px solid var(--border);margin:2px 0;" />
-                  
-                  <label style="font-size:0.88rem;font-weight:700;color:var(--text-secondary);">Atrelar Mais Colaboradores</label>
-                  <div style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);" id="availableCollaboratorsList">
-                    <!-- Lista de checkboxes. Os já atrelados ficam desabilitados e marcados -->
-                  </div>
-                  
-                  <div style="display:flex;gap:10px;margin-top:4px;">
-                    <button class="btn btn-sm btn-primary" id="saveCollaboratorsBtn">Salvar Alterações</button>
-                    <button class="btn btn-sm btn-secondary" id="cancelCollaboratorsBtn">Cancelar</button>
-                  </div>
-                </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 style="margin:0 0 12px 0;font-size:1.2rem;color:var(--primary);text-transform:uppercase;letter-spacing:0.5px;">${escapeHtml(ticket.title)}</h3>
-                  
-                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:0.88rem;">
-                    <div>
-                      <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Origem</span>
-                      <strong style="color:var(--text-primary);">${escapeHtml(ticket.creator?.full_name || '—')}</strong>
-                    </div>
-                    <div>
-                      <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Data de Abertura</span>
-                      <strong style="color:var(--text-primary);">${formatDate(ticket.created_at)}</strong>
-                    </div>
-                    <div>
-                      <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Destino</span>
-                      <strong style="color:var(--text-primary);">
-                        ${escapeHtml(
-                          ticket.destination?.name || 
-                          ticket.ticket_users
-                            ?.map(tu => tu.profile)
-                            .filter(p => p && p.id !== ticket.created_by)
-                            .map(c => c.full_name)
-                            .join(', ') || 
-                          'Colaborador(es)'
-                        )}
-                      </strong>
-                    </div>
-                    <div>
-                      <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Data de Encerramento</span>
-                      <strong style="color:var(--text-primary);">${ticket.status === 'resolved' && ticket.updated_at ? formatDate(ticket.updated_at) : '—'}</strong>
-                    </div>
-                    <div>
-                      <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Prazo de Conclusão</span>
-                      <div id="deadlineDisplay" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                        <strong style="color:var(--text-primary);" id="deadlineText">
-                          ${ticket.deadline ? formatDate(ticket.deadline) : 'Sem prazo definido'}
-                        </strong>
-                        ${(ticket.created_by === profile.id || profile.role === 'director') && ticket.status !== 'resolved' ? `
-                          <button class="btn btn-sm btn-icon" id="btnEditDeadline" style="padding:2px 6px;font-size:0.75rem;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;color:var(--primary);" title="Editar Prazo">✏️</button>
-                        ` : ''}
-                      </div>
-                      
-                      <!-- Formulário para editar prazo (oculto por padrão) -->
-                      ${(ticket.created_by === profile.id || profile.role === 'director') && ticket.status !== 'resolved' ? `
-                        <div id="editDeadlineForm" style="display:none;flex-direction:column;gap:6px;margin-top:6px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-app);">
-                          <input type="datetime-local" id="newDeadlineInput" class="input" style="font-size:0.8rem;padding:6px;background:var(--bg-card);" value="${ticket.deadline ? new Date(new Date(ticket.deadline).getTime() - new Date(ticket.deadline).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''}" />
-                          <div style="display:flex;gap:6px;">
-                            <button class="btn btn-sm btn-primary" id="btnSaveDeadline" style="font-size:0.75rem;padding:4px 8px;">Salvar</button>
-                            <button class="btn btn-sm btn-secondary" id="btnCancelDeadline" style="font-size:0.75rem;padding:4px 8px;">Cancelar</button>
-                          </div>
-                        </div>
-                      ` : ''}
-                    </div>
-                  </div>
-
-                  <div style="display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;">
-                    <div style="display:flex;align-items:center;gap:6px;">
-                      <span style="color:var(--text-muted);font-size:0.88rem;">Status:</span>
-                      <span class="badge badge-${ticket.status}">${STATUS_LABELS[ticket.status]}</span>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:6px;">
-                      <span style="color:var(--text-muted);font-size:0.88rem;">Prioridade:</span>
-                      <span class="badge badge-${ticket.priority}">${PRIORITY_LABELS[ticket.priority]}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" />
-
-                <!-- Descrição -->
-                <div>
-                  <h4 style="margin:0 0 6px 0;font-size:0.95rem;color:var(--text-secondary);">Descrição do Problema:</h4>
-                  <p style="margin:0;font-size:0.9rem;color:var(--text-primary);background:var(--bg-app);padding:14px;border-radius:10px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.5;">${escapeHtml(ticket.description || 'Nenhuma descrição detalhada fornecida.')}</p>
-                </div>
-
-                <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" />
-
-                <!-- Custos Externos -->
-                <div>
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                    <h4 style="margin:0;font-size:0.95rem;color:var(--text-secondary);">Custos Externos</h4>
-                    <button class="btn btn-sm btn-primary" id="addCostBtn" style="padding:6px 12px;font-size:0.8rem;font-weight:600;display:flex;align-items:center;gap:6px;">
-                      ＋ Inserir Custo
-                    </button>
-                  </div>
-
-                  <!-- Formulário de inserção inline de custo (oculto por padrão) -->
-                  <div id="costInputForm" style="display:none;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--bg-app);margin-bottom:12px;">
-                    <input type="text" id="costDesc" class="input" placeholder="Descrição do custo..." style="font-size:0.85rem;padding:8px 10px;background:var(--bg-card);" />
-                    <div style="display:flex;gap:10px;">
-                      <input type="text" id="costVal" class="input" placeholder="R$ 0,00" style="font-size:0.85rem;padding:8px 10px;background:var(--bg-card);flex:1;" />
-                      <button class="btn btn-sm btn-primary" id="saveCostBtn" style="font-size:0.8rem;padding:6px 12px;">Salvar</button>
-                      <button class="btn btn-sm btn-secondary" id="cancelCostBtn" style="font-size:0.8rem;padding:6px 12px;">Cancelar</button>
-                    </div>
-                  </div>
-
-                  <div id="ticketCostsList" style="max-height:150px;overflow-y:auto;padding-right:4px;">
-                    <!-- Populado dinamicamente -->
-                  </div>
-
-                  <div id="ticketCostsTotal" style="margin-top:10px;font-size:1.05rem;color:var(--text-primary);text-align:left;border-top:1px solid var(--border);padding-top:10px;">
-                    Total: <strong>R$ 0,00</strong>
-                  </div>
-                </div>
-
-                <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;" />
-
-                <!-- Histórico de Atividades -->
-                <div>
-                  <h4 style="margin:0 0 10px 0;font-size:0.95rem;color:var(--text-secondary);">Histórico do Chamado</h4>
-                  <div id="ticketHistoryList" style="max-height:180px;overflow-y:auto;padding-right:4px;" class="history-timeline">
-                    <!-- Populado dinamicamente -->
-                  </div>
-                </div>
-
-              </div>
-
-              <!-- COLUNA DIREITA (CHAT DE MENSAGENS) -->
-              <div style="display:flex;flex-direction:column;gap:14px;border-left:1px solid var(--border);padding-left:24px;" class="modal-chat-column">
-                <h4 style="margin:0;font-size:1.05rem;color:var(--text-primary);display:flex;align-items:center;justify-content:space-between;">
-                  Mensagens
-                  <button class="btn btn-sm btn-secondary" id="btnRefreshChat" style="padding:4px 8px;font-size:0.75rem;border:none;border-radius:4px;cursor:pointer;">🔄 Atualizar</button>
-                </h4>
-                
-                <div id="ticketChatHistory" style="display:flex;flex-direction:column;gap:12px;max-height:360px;overflow-y:auto;padding-right:6px;min-height:260px;flex:1;">
-                  <!-- Populado dinamicamente -->
-                </div>
-                
-                <div style="display:flex;gap:10px;align-items:flex-end;margin-top:10px;">
-                  <textarea id="chatInputMessage" class="input" placeholder="Digite uma mensagem..." rows="2" style="resize:none;font-size:0.88rem;flex:1;padding:8px 12px;border-radius:8px;background:var(--bg-card);"></textarea>
-                  <button id="sendChatMsgBtn" style="background:#059669;color:white;border:none;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background 0.2s;box-shadow:var(--shadow-sm);" title="Enviar Mensagem">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      `;
-
-      // Seletor de layout responsivo CSS adicional para o grid
-      const styleSheet = document.createElement("style");
-      styleSheet.innerText = `
-        @media (max-width: 768px) {
-          .modal-grid-layout {
-            grid-template-columns: 1fr !important;
-            gap: 24px !important;
-          }
-          .modal-chat-column {
-            border-left: none !important;
-            padding-left: 0 !important;
-            border-top: 1px solid var(--border) !important;
-            padding-top: 20px !important;
-          }
-        }
-        .history-timeline {
-          position: relative;
-          padding-left: 24px;
-        }
-        .history-timeline::before {
-          content: '';
-          position: absolute;
-          left: 9px;
-          top: 6px;
-          bottom: 6px;
-          width: 2px;
-          background: var(--border);
-        }
-      `;
-      document.head.appendChild(styleSheet);
-
-      // Renderização inicial de mensagens, custos e histórico
-      renderCosts(costs);
-      renderMessages(messages);
-      renderHistory(history);
-
-      // Ouvinte para fechar o modal
-      document.getElementById('closeModal')?.addEventListener('click', () => {
-        modalContainer.innerHTML = '';
-        loadTickets(); // Atualiza a dashboard
-      });
-      document.getElementById('modalOverlay')?.addEventListener('click', (e) => {
-        if (e.target.id === 'modalOverlay') {
-          modalContainer.innerHTML = '';
-          loadTickets();
-        }
-      });
-
-      // Ouvintes dos botões de status superiores
-      document.getElementById('btnStartService')?.addEventListener('click', async () => {
-        try {
-          await updateTicketStatus(ticketId, 'in_progress');
-          showToast('Atendimento iniciado!', 'success');
-          openTicketDetail(ticketId); // Reabre para atualizar status/botões
-        } catch (err) {
-          console.error(err);
-          showToast('Erro ao iniciar atendimento', 'error');
-        }
-      });
-
-      document.getElementById('btnFinishTicket')?.addEventListener('click', async () => {
-        try {
-          await updateTicketStatus(ticketId, 'resolved');
-          showToast('Chamado finalizado!', 'success');
-          openTicketDetail(ticketId);
-        } catch (err) {
-          console.error(err);
-          showToast('Erro ao finalizar chamado', 'error');
-        }
-      });
-
-      // Renderizar listas de colaboradores
-      const linkedListContainer = document.getElementById('linkedCollaboratorsList');
-      const availableListContainer = document.getElementById('availableCollaboratorsList');
-      
-      if (linkedListContainer && availableListContainer) {
-        // Renderizar quem já está atrelado
-        const creatorBadge = `
-          <span style="background:var(--primary-light);color:var(--primary);font-size:0.8rem;padding:6px 12px;border-radius:20px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
-            👑 ${escapeHtml(ticket.creator?.full_name || 'Autor')}
-          </span>
-        `;
-        const otherBadges = ticket.ticket_users
-          ?.filter(tu => tu.profile && tu.profile.id !== ticket.created_by)
-          .map(tu => `
-            <span style="background:var(--bg-app);color:var(--text-primary);font-size:0.8rem;padding:6px 12px;border-radius:20px;font-weight:500;border:1px solid var(--border);display:inline-flex;align-items:center;gap:4px;">
-              👤 ${escapeHtml(tu.profile.full_name || 'Colaborador')}
-            </span>
-          `).join('') || '';
-        
-        linkedListContainer.innerHTML = creatorBadge + otherBadges;
-
-        // Renderizar checklist de disponíveis
-        const otherProfiles = allProfiles.filter(p => p.id !== ticket.created_by);
-        availableListContainer.innerHTML = otherProfiles.map(p => {
-          const isAlreadyLinked = ticket.involved_user_ids?.includes(p.id);
-          return `
-            <label style="display:flex;align-items:center;gap:10px;padding:6px 8px;font-size:0.88rem;cursor:${isAlreadyLinked ? 'not-allowed' : 'pointer'};opacity:${isAlreadyLinked ? '0.7' : '1'};border-bottom:1px dashed var(--border);width:100%;">
-              <input type="checkbox" value="${p.id}" ${isAlreadyLinked ? 'checked disabled' : ''} class="new-collab-checkbox" style="width:16px;height:16px;cursor:${isAlreadyLinked ? 'not-allowed' : 'pointer'};" />
-              <span>${escapeHtml(p.full_name || p.email)}</span>
-            </label>
-          `;
-        }).join('');
-      }
-
-      // Eventos dos botões de Colaboradores
-      const collaboratorsForm = document.getElementById('collaboratorsForm');
-      document.getElementById('btnCollaborators')?.addEventListener('click', () => {
-        if (collaboratorsForm) {
-          collaboratorsForm.style.display = collaboratorsForm.style.display === 'none' ? 'flex' : 'none';
-        }
-      });
-
-      document.getElementById('cancelCollaboratorsBtn')?.addEventListener('click', () => {
-        if (collaboratorsForm) collaboratorsForm.style.display = 'none';
-      });
-
-      document.getElementById('saveCollaboratorsBtn')?.addEventListener('click', async () => {
-        const checkedBoxes = document.querySelectorAll('.new-collab-checkbox:checked:not([disabled])');
-        const newIds = Array.from(checkedBoxes).map(cb => cb.value);
-
-        if (newIds.length === 0) {
-          showToast('Nenhum novo colaborador selecionado', 'info');
-          return;
-        }
-
-        try {
-          await addTicketCollaborators(ticketId, newIds);
-          showToast('Colaborador(es) atrelado(s) com sucesso!', 'success');
-          openTicketDetail(ticketId);
-        } catch (err) {
-          console.error(err);
-          showToast('Erro ao atrelar colaborador(es)', 'error');
-        }
-      });
-
-      // Fluxo colapsável do Inserir Custo
-      const costInputForm = document.getElementById('costInputForm');
-      const addCostBtn = document.getElementById('addCostBtn');
-
-      // Máscara monetária em tempo real para moeda Real (BRL)
-      const costValInput = document.getElementById('costVal');
-      if (costValInput) {
-        costValInput.addEventListener('input', (e) => {
-          let value = e.target.value;
-          let digits = value.replace(/\D/g, '');
-          if (digits.length === 0) {
-            e.target.value = '';
-            return;
-          }
-          let numberValue = parseFloat(digits) / 100;
-          e.target.value = new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-          }).format(numberValue);
-        });
-      }
-
-      addCostBtn?.addEventListener('click', () => {
-        if (costInputForm) {
-          costInputForm.style.display = 'flex';
-          addCostBtn.style.display = 'none';
-        }
-      });
-
-      document.getElementById('cancelCostBtn')?.addEventListener('click', () => {
-        if (costInputForm) {
-          costInputForm.style.display = 'none';
-          if (addCostBtn) addCostBtn.style.display = 'flex';
-          document.getElementById('costDesc').value = '';
-          document.getElementById('costVal').value = '';
-        }
-      });
-
-      document.getElementById('saveCostBtn')?.addEventListener('click', async () => {
-        const desc = document.getElementById('costDesc')?.value.trim();
-        const valStr = document.getElementById('costVal')?.value;
-
-        if (!desc || !valStr) {
-          showToast('Preencha a descrição e o valor', 'error');
-          return;
-        }
-
-        // Limpar a formatação BRL (R$, pontos) e converter vírgula decimal para ponto
-        const cleanValStr = valStr.replace(/[^\d,]/g, '').replace(',', '.');
-        const val = parseFloat(cleanValStr);
-        if (isNaN(val) || val <= 0) {
-          showToast('Valor de custo inválido', 'error');
-          return;
-        }
-
-        try {
-          await addTicketCost(ticketId, desc, val);
-          showToast('Custo adicionado com sucesso!', 'success');
-          
-          // Oculta form e atualiza custos
-          if (costInputForm) costInputForm.style.display = 'none';
-          if (addCostBtn) addCostBtn.style.display = 'flex';
-          document.getElementById('costDesc').value = '';
-          document.getElementById('costVal').value = '';
-          
-          const updatedCosts = await fetchTicketCosts(ticketId);
-          renderCosts(updatedCosts);
-        } catch (err) {
-          console.error(err);
-          showToast('Erro ao adicionar custo', 'error');
-        }
-      });
-
-      // Ouvinte para Enviar Mensagem no Chat
-      const chatInput = document.getElementById('chatInputMessage');
-      const sendMsgBtn = document.getElementById('sendChatMsgBtn');
-
-      const performSend = async () => {
-        const text = chatInput?.value.trim();
-        if (!text) return;
-
-        try {
-          chatInput.value = ''; // Limpa rápido
-          await sendTicketMessage(ticketId, text);
-          const updatedMessages = await fetchTicketMessages(ticketId);
-          renderMessages(updatedMessages);
-        } catch (err) {
-          console.error(err);
-          showToast('Erro ao enviar mensagem', 'error');
-        }
-      };
-
-      sendMsgBtn?.addEventListener('click', performSend);
-      chatInput?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          performSend();
-        }
-      });
-
-      // Ouvinte para Atualizar Chat
-      document.getElementById('btnRefreshChat')?.addEventListener('click', async () => {
-        const updatedMessages = await fetchTicketMessages(ticketId);
-        renderMessages(updatedMessages);
-        showToast('Chat atualizado!', 'success');
-      });
-
-      // Fluxo de Edição de Prazo (somente criador do chamado)
-      const btnEditDeadline = document.getElementById('btnEditDeadline');
-      const editDeadlineForm = document.getElementById('editDeadlineForm');
-      const btnCancelDeadline = document.getElementById('btnCancelDeadline');
-      const btnSaveDeadline = document.getElementById('btnSaveDeadline');
-
-      btnEditDeadline?.addEventListener('click', () => {
-        if (editDeadlineForm) {
-          editDeadlineForm.style.display = 'flex';
-          btnEditDeadline.style.display = 'none';
-        }
-      });
-
-      btnCancelDeadline?.addEventListener('click', () => {
-        if (editDeadlineForm) {
-          editDeadlineForm.style.display = 'none';
-          if (btnEditDeadline) btnEditDeadline.style.display = 'inline-block';
-        }
-      });
-
-      btnSaveDeadline?.addEventListener('click', async () => {
-        const newDeadlineVal = document.getElementById('newDeadlineInput')?.value;
-        if (!newDeadlineVal) {
-          showToast('Defina uma data/hora de prazo válida', 'error');
-          return;
-        }
-
-        const newDeadline = new Date(newDeadlineVal);
-        const oldDeadline = ticket.deadline ? new Date(ticket.deadline) : null;
-
-        // Validar no frontend: novo prazo deve ser maior (exceto para diretores)
-        if (profile.role !== 'director' && oldDeadline && newDeadline <= oldDeadline) {
-          showToast('O novo prazo deve ser maior do que o prazo atual', 'error');
-          return;
-        }
-
-        try {
-          await updateTicketDeadline(ticketId, newDeadline.toISOString());
-          showToast('Prazo atualizado com sucesso!', 'success');
-          
-          // Recarregar os detalhes para atualizar tudo
-          openTicketDetail(ticketId);
-          loadTickets(); // Atualiza também a tabela de fundo
-        } catch (err) {
-          console.error(err);
-          showToast(err.message || 'Erro ao atualizar prazo', 'error');
-        }
-      });
-
-      // Sub-funções de renderização de listas internas
-      function renderCosts(costsList) {
-        const costsListContainer = document.getElementById('ticketCostsList');
-        const costsTotalContainer = document.getElementById('ticketCostsTotal');
-        if (costsListContainer && costsTotalContainer) {
-          let total = 0;
-          costsListContainer.innerHTML = costsList.map(c => {
-            const amountVal = parseFloat(c.amount);
-            total += amountVal;
-            return `
-              <div style="display:flex;justify-content:space-between;font-size:0.88rem;padding:8px 0;border-bottom:1px dashed var(--border);align-items:center;">
-                <span style="color:var(--text-primary);font-weight:500;">${escapeHtml(c.description)}</span>
-                <span style="font-weight:600;color:var(--text-secondary);">R$ ${amountVal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-            `;
-          }).join('') || '<p style="color:var(--text-muted);font-size:0.85rem;margin-top:6px;">Nenhum custo externo registrado.</p>';
-
-          costsTotalContainer.innerHTML = `Total: <strong style="font-size:1.15rem;color:var(--primary);margin-left:4px;">R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>`;
-        }
-      }
-
-      function renderMessages(messagesList) {
-        const chatContainer = document.getElementById('ticketChatHistory');
-        if (chatContainer) {
-          chatContainer.innerHTML = messagesList.map(m => `
-            <div style="border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--bg-app);font-size:0.88rem;color:var(--text-primary);box-shadow:var(--shadow-xs);display:flex;flex-direction:column;gap:4px;">
-              <div style="font-weight:700;font-size:0.8rem;color:var(--text-secondary);display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:2px;">
-                <span>${escapeHtml(m.sender?.full_name || 'Desconhecido')}</span>
-                <span style="color:var(--text-muted);font-weight:normal;font-size:0.75rem;">${formatDate(m.created_at)}</span>
-              </div>
-              <div style="white-space:pre-wrap;line-height:1.4;margin-top:2px;">${escapeHtml(m.content)}</div>
-            </div>
-          `).join('') || '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;margin-top:40px;">Escreva uma mensagem para iniciar o chat.</p>';
-          
-          chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-      }
-
-      function renderHistory(historyList) {
-        const historyContainer = document.getElementById('ticketHistoryList');
-        if (historyContainer) {
-          historyContainer.innerHTML = historyList.map(h => {
-            const authorName = h.author?.full_name || 'Sistema';
-            
-            // Determinar ícone/cor com base no tipo de ação
-            let color = 'var(--text-muted)';
-            let icon = '⚙️';
-            
-            if (h.action === 'create') {
-              color = '#10b981';
-              icon = '➕';
-            } else if (h.action === 'start_service') {
-              color = '#3b82f6';
-              icon = '⚡';
-            } else if (h.action === 'resolve') {
-              color = '#10b981';
-              icon = '✅';
-            } else if (h.action === 'reopen') {
-              color = '#ef4444';
-              icon = '🔄';
-            } else if (h.action === 'forward') {
-              color = '#f59e0b';
-              icon = '➡️';
-            } else if (h.action === 'overdue') {
-              color = '#ef4444';
-              icon = '⏰';
-            } else if (h.action === 'cost_added') {
-              color = '#6366f1';
-              icon = '💵';
-            }
-
-            return `
-              <div class="history-item" style="margin-bottom: 16px; position: relative;">
-                <span class="history-icon" style="position: absolute; left: -25px; top: 1px; background: ${color}; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; border: 2px solid var(--bg-card);">${icon}</span>
-                <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.4;">
-                  <strong>${escapeHtml(authorName)}</strong> ${escapeHtml(h.description)}
-                </div>
-                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
-                  ${formatDate(h.created_at)}
-                </div>
-              </div>
-            `;
-          }).join('') || '<p style="color:var(--text-muted);font-size:0.85rem;margin-top:6px;">Nenhuma atividade registrada.</p>';
-        }
-      }
-
-    } catch (err) {
-      console.error(err);
-      showToast('Erro ao carregar detalhes', 'error');
-    }
   }
 
   await loadTickets();
@@ -1170,16 +566,4 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }

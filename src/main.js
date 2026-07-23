@@ -10,6 +10,7 @@ import { renderDashboard } from './pages/dashboard.js';
 import { renderNewTicket } from './pages/new-ticket.js';
 import { renderAdminDepartments } from './pages/admin-departments.js';
 import { renderAdminUsers } from './pages/admin-users.js';
+import { renderTicketDetail } from './pages/ticket-detail.js';
 
 // Registrar rotas
 registerRoute('/login', renderLogin);
@@ -17,6 +18,7 @@ registerRoute('/dashboard', renderDashboard);
 registerRoute('/new-ticket', renderNewTicket);
 registerRoute('/admin/departments', renderAdminDepartments);
 registerRoute('/admin/users', renderAdminUsers);
+registerRoute('/ticket', renderTicketDetail);
 
 // Listener de autenticação: redireciona automaticamente
 onAuthChange(async (event, session) => {
