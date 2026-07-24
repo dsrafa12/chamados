@@ -388,10 +388,14 @@ export async function fetchPurchaseProcesses() {
         id,
         ticket_number,
         title,
+        description,
+        priority,
+        deadline,
         created_by,
         destination_department_id,
         creator:profiles!created_by(full_name),
-        destination:departments!destination_department_id(name)
+        destination:departments!destination_department_id(name),
+        origin:departments!origin_department_id(name)
       )
     `)
     .order('created_at', { ascending: false });
@@ -434,6 +438,21 @@ export async function updatePurchaseProcessStatus(processId, newStatus) {
     .from('purchase_processes')
     .update({
       status: newStatus,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', processId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/** Atualiza dados genéricos do processo de compra */
+export async function updatePurchaseProcess(processId, updateData) {
+  const { data, error } = await supabase
+    .from('purchase_processes')
+    .update({
+      ...updateData,
       updated_at: new Date().toISOString()
     })
     .eq('id', processId)
