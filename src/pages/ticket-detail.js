@@ -363,6 +363,29 @@ export async function renderTicketDetail(container, queryString) {
           </div>
         </div>
       </div>
+
+      <!-- MODAL DE CONFIRMAÇÃO DE FINALIZAÇÃO -->
+      <div id="finishModal" class="modal-container" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1100; align-items:center; justify-content:center;">
+        <div class="card" style="width:100%; max-width:480px; padding:24px; position:relative; box-shadow:var(--shadow-lg); animation: slideUp 0.25s ease-out; border-radius:12px;">
+          <button id="closeFinishModalBtn" style="position:absolute; top:20px; right:20px; background:transparent; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);" title="Fechar">✕</button>
+          
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+            <span style="font-size:2rem;">✅</span>
+            <h3 style="margin:0; font-size:1.25rem; font-weight:700; color:var(--text-primary);">Finalizar Chamado</h3>
+          </div>
+          
+          <p style="margin:0 0 24px 0; font-size:0.95rem; color:var(--text-secondary); line-height:1.5;">
+            Tem certeza que deseja finalizar este chamado? 
+            <br><br>
+            <strong>Nota:</strong> Ele poderá ser reaberto futuramente por qualquer pessoa atrelada a este chamado caso seja necessário.
+          </p>
+
+          <div style="display:flex; justify-content:flex-end; gap:12px;">
+            <button class="btn btn-secondary" id="finishCancelBtn" style="padding:10px 20px;">Cancelar</button>
+            <button class="btn btn-primary" id="finishConfirmBtn" style="padding:10px 24px; font-weight:600; background:#059669; border-color:#059669;">Sim, Finalizar</button>
+          </div>
+        </div>
+      </div>
     `;
 
     // 3. Estilos adicionais para timeline e grid responsivo
@@ -554,16 +577,42 @@ export async function renderTicketDetail(container, queryString) {
       }
     });
 
+    const finishModal = document.getElementById('finishModal');
+
     // Status: Finalizar Chamado
-    document.getElementById('btnFinishTicket')?.addEventListener('click', async () => {
+    document.getElementById('btnFinishTicket')?.addEventListener('click', () => {
+      finishModal?.classList.add('open');
+    });
+
+    // Fechar Modal de Finalização
+    document.getElementById('closeFinishModalBtn')?.addEventListener('click', () => {
+      finishModal?.classList.remove('open');
+    });
+    document.getElementById('finishCancelBtn')?.addEventListener('click', () => {
+      finishModal?.classList.remove('open');
+    });
+
+    // Confirmar Finalização
+    document.getElementById('finishConfirmBtn')?.addEventListener('click', async () => {
+      const confirmBtn = document.getElementById('finishConfirmBtn');
       try {
+        if (confirmBtn) {
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = 'Processando...';
+        }
         await updateTicketStatus(ticketId, 'resolved');
         showToast('Chamado finalizado!', 'success');
+        finishModal?.classList.remove('open');
         await loadAllData();
         renderPage();
       } catch (err) {
         console.error(err);
         showToast('Erro ao finalizar chamado', 'error');
+      } finally {
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = 'Sim, Finalizar';
+        }
       }
     });
 
