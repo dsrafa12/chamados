@@ -142,9 +142,17 @@ export async function renderTicketDetail(container, queryString) {
     if (statusClass === 'in_progress_overdue') {
       detailBadgeStyle = 'font-size:0.72rem; line-height:1.15; padding:4px 8px; white-space:normal; text-align:center; display:inline-block; max-width:125px;';
       detailLabelHtml = `Em Atendimento<br>(Atrasado)`;
-    } else if (statusClass === 'awaiting_start' || statusClass === 'in_analysis' || statusClass === 'awaiting_info' || statusClass === 'in_quotation' || statusClass === 'in_approval' || statusClass === 'order_issued' || statusClass === 'awaiting_supplier' || statusClass === 'awaiting_receipt' || statusClass === 'finalized' || statusClass === 'cancelled') {
-      detailBadgeStyle = 'font-size:0.75rem; line-height:1.15; padding:4px 8px; white-space:normal; text-align:center; display:inline-block; max-width:125px;';
-      detailLabelHtml = statusLabel;
+    } else if (statusClass === 'awaiting_start' || statusClass === 'in_analysis' || statusClass === 'awaiting_info' || statusClass === 'in_quotation' || statusClass === 'in_approval' || statusClass === 'order_issued' || statusClass === 'awaiting_supplier' || statusClass === 'awaiting_receipt' || statusClass === 'finalized' || statusClass === 'cancelled' || statusClass === 'reopened') {
+      detailBadgeStyle = 'font-size:0.72rem; line-height:1.15; padding:4px 8px; white-space:normal; text-align:center; display:inline-block; max-width:125px;';
+      if (statusClass === 'awaiting_start') {
+        detailLabelHtml = `Gerado Processo<br>de Compra`;
+      } else if (statusClass === 'awaiting_info') {
+        detailLabelHtml = `Aguardando<br>Informações`;
+      } else if (statusClass === 'awaiting_supplier') {
+        detailLabelHtml = `Aguardando<br>Fornecedor`;
+      } else if (statusClass === 'awaiting_receipt') {
+        detailLabelHtml = `Aguardando<br>Recebimento`;
+      }
     }
 
     mainContent.innerHTML = `

@@ -228,6 +228,22 @@ export async function renderPurchaseProcesses(container, queryString) {
         badgeStyle = 'background:#fee2e2; color:#991b1b;';
       }
 
+      let labelHtml = STATUS_LABELS[p.status] || p.status;
+      let finalBadgeStyle = `min-width:145px; padding:6px 12px; font-size:0.8rem; border-radius:12px; font-weight:600; display:inline-block; white-space:nowrap; ${badgeStyle}`;
+      if (p.status === 'awaiting_start') {
+        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
+        labelHtml = `Gerado Processo<br>de Compra`;
+      } else if (p.status === 'awaiting_info') {
+        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
+        labelHtml = `Aguardando<br>Informações`;
+      } else if (p.status === 'awaiting_supplier') {
+        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
+        labelHtml = `Aguardando<br>Fornecedor`;
+      } else if (p.status === 'awaiting_receipt') {
+        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
+        labelHtml = `Aguardando<br>Recebimento`;
+      }
+
       return `
         <tr style="border-bottom:1px solid var(--border); transition:background 0.2s;">
           <td style="padding:14px 20px;">
@@ -245,8 +261,8 @@ export async function renderPurchaseProcesses(container, queryString) {
             ${escapeHtml(destName)}
           </td>
           <td style="padding:14px 20px; text-align:center;">
-            <span class="badge" style="min-width:145px; padding:6px 12px; font-size:0.8rem; border-radius:12px; font-weight:600; display:inline-block; ${badgeStyle}">
-              ${STATUS_LABELS[p.status] || p.status}
+            <span class="badge" style="${finalBadgeStyle}">
+              ${labelHtml}
             </span>
           </td>
           <td style="padding:14px 20px; text-align:center;">

@@ -521,6 +521,18 @@ export async function renderDashboard(container) {
     if (statusClass === 'in_progress_overdue') {
       badgeStyle = `min-width:125px; padding:4px 8px; font-size:0.72rem; display:inline-block; white-space:normal; line-height:1.15;`;
       labelHtml = `Em Atendimento<br>(Atrasado)`;
+    } else if (statusClass === 'awaiting_start') {
+      badgeStyle = `min-width:125px; padding:4px 8px; font-size:0.72rem; display:inline-block; white-space:normal; line-height:1.15;`;
+      labelHtml = `Gerado Processo<br>de Compra`;
+    } else if (statusClass === 'awaiting_info') {
+      badgeStyle = `min-width:125px; padding:4px 8px; font-size:0.72rem; display:inline-block; white-space:normal; line-height:1.15;`;
+      labelHtml = `Aguardando<br>Informações`;
+    } else if (statusClass === 'awaiting_supplier') {
+      badgeStyle = `min-width:125px; padding:4px 8px; font-size:0.72rem; display:inline-block; white-space:normal; line-height:1.15;`;
+      labelHtml = `Aguardando<br>Fornecedor`;
+    } else if (statusClass === 'awaiting_receipt') {
+      badgeStyle = `min-width:125px; padding:4px 8px; font-size:0.72rem; display:inline-block; white-space:normal; line-height:1.15;`;
+      labelHtml = `Aguardando<br>Recebimento`;
     }
 
     return `
