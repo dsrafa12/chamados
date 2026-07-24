@@ -181,6 +181,10 @@ export async function renderTicketDetail(container, queryString) {
               ` : ''}
             ` : ''}
 
+            ${!isFinalized && purchaseProcess ? `
+              <button class="btn btn-sm" id="btnViewPurchaseDetails" style="background:#0891b2;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Detalhes da Compra</button>
+            ` : ''}
+
             ${isMemberOfCompras && !isFinalized ? `
               ${purchaseProcess ? `
                 <button class="btn btn-sm" id="btnAccessPurchaseProcess" style="background:#0284c7;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Acessar Processo de Compra</button>
@@ -418,6 +422,29 @@ export async function renderTicketDetail(container, queryString) {
           <div style="display:flex; justify-content:flex-end; gap:12px;">
             <button class="btn btn-secondary" id="purchaseCancelBtn" style="padding:10px 20px;">Cancelar</button>
             <button class="btn btn-primary" id="purchaseConfirmBtn" style="padding:10px 24px; font-weight:600; background:#0f766e; border-color:#0f766e;">Sim, Criar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL DE DETALHES DA COMPRA (INFORMATIVO) -->
+      <div id="purchaseDetailsModal" class="modal-container" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1100; align-items:center; justify-content:center;">
+        <div class="card" style="width:100%; max-width:640px; padding:28px; position:relative; box-shadow:var(--shadow-lg); animation: slideUp 0.25s ease-out; border-radius:12px;">
+          <button id="closePurchaseDetailsModalBtn" style="position:absolute; top:20px; right:20px; background:transparent; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);" title="Fechar">✕</button>
+          
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+            <span style="font-size:2rem;">🛒</span>
+            <div>
+              <h3 style="margin:0; font-size:1.25rem; font-weight:700; color:var(--text-primary);">Detalhes da Compra</h3>
+              <p style="margin:2px 0 0 0; font-size:0.85rem; color:var(--text-muted);">Informações sobre o processo de compra deste chamado</p>
+            </div>
+          </div>
+          
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;" id="purchaseDetailsModalContent">
+            <!-- Dynamic read-only details -->
+          </div>
+
+          <div style="display:flex; justify-content:flex-end;">
+            <button class="btn btn-secondary" id="purchaseDetailsCloseBtn" style="padding:10px 24px;">Fechar</button>
           </div>
         </div>
       </div>
@@ -693,6 +720,94 @@ export async function renderTicketDetail(container, queryString) {
     // Acessar Processo de Compra
     document.getElementById('btnAccessPurchaseProcess')?.addEventListener('click', () => {
       navigateTo(`/purchase-processes?ticketId=${ticketId}`);
+    });
+
+    // Modal de Detalhes da Compra (Informativo)
+    const purchaseDetailsModal = document.getElementById('purchaseDetailsModal');
+    
+    document.getElementById('btnViewPurchaseDetails')?.addEventListener('click', () => {
+      const contentContainer = document.getElementById('purchaseDetailsModalContent');
+      if (contentContainer && purchaseProcess) {
+        // Obter nome do responsável
+        const respProfile = allProfiles.find(p => p.id === purchaseProcess.responsible_id);
+        const respName = respProfile ? (respProfile.full_name || respProfile.email) : 'Não atribuído';
+
+        // Formatar valor
+        let amountText = 'Não informado';
+        if (purchaseProcess.purchase_amount !== null && purchaseProcess.purchase_amount !== undefined) {
+          amountText = 'R$ ' + parseFloat(purchaseProcess.purchase_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Formatar data
+        let forecastText = 'Não informado';
+        if (purchaseProcess.delivery_forecast) {
+          const [year, month, day] = purchaseProcess.delivery_forecast.split('-');
+          forecastText = `${day}/${month}/${year}`;
+        }
+
+        // Traduzir motivo do bloqueio
+        const blockTextMap = {
+          none: 'Sem bloqueio',
+          waiting_approval: 'Aguardando aprovação',
+          supplier_delay: 'Atraso do fornecedor',
+          budget_limit: 'Estourou orçamento',
+          other: 'Outro motivo'
+        };
+        const blockText = blockTextMap[purchaseProcess.block_reason] || 'Sem bloqueio';
+
+        // Traduzir recebimento
+        const receiptTextMap = {
+          not_received: 'Não recebido',
+          partial: 'Recebido parcial',
+          total: 'Recebido total'
+        };
+        const receiptText = receiptTextMap[purchaseProcess.receipt_status] || 'Não recebido';
+
+        const statusLabel = STATUS_LABELS[purchaseProcess.status] || purchaseProcess.status;
+
+        contentContainer.innerHTML = `
+          <div style="padding:10px; border-bottom:1px solid var(--border);">
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Status</label>
+            <strong style="color:var(--text-primary); font-size:0.95rem;">${escapeHtml(statusLabel.replace('<br>', ' '))}</strong>
+          </div>
+          <div style="padding:10px; border-bottom:1px solid var(--border);">
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Responsável</label>
+            <strong style="color:var(--text-primary); font-size:0.95rem;">${escapeHtml(respName)}</strong>
+          </div>
+          <div style="padding:10px; border-bottom:1px solid var(--border);">
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Número do Pedido</label>
+            <strong style="color:var(--text-primary); font-size:0.95rem;">${escapeHtml(purchaseProcess.order_number || 'Não informado')}</strong>
+          </div>
+          <div style="padding:10px; border-bottom:1px solid var(--border);">
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Fornecedor</label>
+            <strong style="color:var(--text-primary); font-size:0.95rem;">${escapeHtml(purchaseProcess.supplier || 'Não informado')}</strong>
+          </div>
+          <div style="padding:10px; border-bottom:1px solid var(--border);">
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Valor da Compra</label>
+            <strong style="color:var(--text-primary); font-size:0.95rem;">${escapeHtml(amountText)}</strong>
+          </div>
+          <div style="padding:10px; border-bottom:1px solid var(--border);">
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Previsão de Entrega</label>
+            <strong style="color:var(--text-primary); font-size:0.95rem;">${escapeHtml(forecastText)}</strong>
+          </div>
+          <div style="padding:10px; border-bottom:1px solid var(--border);">
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Motivo do Bloqueio</label>
+            <strong style="color:var(--text-primary); font-size:0.95rem;">${escapeHtml(blockText)}</strong>
+          </div>
+          <div style="padding:10px; border-bottom:1px solid var(--border);">
+            <label style="display:block; font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Recebimento</label>
+            <strong style="color:var(--text-primary); font-size:0.95rem;">${escapeHtml(receiptText)}</strong>
+          </div>
+        `;
+        purchaseDetailsModal?.classList.add('open');
+      }
+    });
+
+    document.getElementById('closePurchaseDetailsModalBtn')?.addEventListener('click', () => {
+      purchaseDetailsModal?.classList.remove('open');
+    });
+    document.getElementById('purchaseDetailsCloseBtn')?.addEventListener('click', () => {
+      purchaseDetailsModal?.classList.remove('open');
     });
 
     // Modal de Reabertura
