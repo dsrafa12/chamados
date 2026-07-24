@@ -125,7 +125,9 @@ export async function renderPurchaseProcesses(container, queryString) {
           <div style="min-width:180px;">
             <select id="filterProcessStatus" class="input" style="font-size:0.9rem;">
               <option value="">Todos os Status</option>
-              ${Object.entries(STATUS_LABELS).map(([key, label]) => `
+              ${Object.entries(STATUS_LABELS)
+                .filter(([key]) => key !== 'finalized' && key !== 'cancelled' && key !== 'reopened')
+                .map(([key, label]) => `
                 <option value="${key}">${label}</option>
               `).join('')}
             </select>
@@ -201,7 +203,7 @@ export async function renderPurchaseProcesses(container, queryString) {
     const statusFilterVal = document.getElementById('filterProcessStatus')?.value || '';
     const activeStatuses = statusFilterVal 
       ? [statusFilterVal] 
-      : Object.keys(STATUS_LABELS);
+      : Object.keys(STATUS_LABELS).filter(k => k !== 'finalized' && k !== 'cancelled' && k !== 'reopened');
 
     const columnsHtml = activeStatuses.map(statusKey => {
       const colProcesses = filteredProcesses.filter(p => p.status === statusKey);
@@ -569,7 +571,9 @@ export async function renderPurchaseProcesses(container, queryString) {
               <div>
                 <label style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">Status</label>
                 <select id="modalStatusSelect" class="input" style="font-size:0.95rem; padding:10px 12px; background:var(--bg-app);">
-                  ${Object.entries(STATUS_LABELS).map(([key, label]) => `
+                  ${Object.entries(STATUS_LABELS)
+                    .filter(([key]) => key !== 'finalized' && key !== 'cancelled' && key !== 'reopened')
+                    .map(([key, label]) => `
                     <option value="${key}" ${process.status === key ? 'selected' : ''}>${label.replace('<br>', ' ')}</option>
                   `).join('')}
                 </select>
