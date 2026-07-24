@@ -35,7 +35,8 @@ const STATUS_LABELS = {
   awaiting_supplier: 'Aguardando Fornecedor',
   awaiting_receipt: 'Aguardando Recebimento',
   finalized: 'Finalizado',
-  cancelled: 'Cancelado'
+  cancelled: 'Cancelado',
+  reopened: 'Reaberto'
 };
 
 export async function renderTicketDetail(container, queryString) {
@@ -166,7 +167,7 @@ export async function renderTicketDetail(container, queryString) {
               ${(ticket.status === 'open' || ticket.status === 'overdue') ? `
                 <button class="btn btn-sm" id="btnStartService" style="background:#3b82f6;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Iniciar Atendimento</button>
               ` : ''}
-              ${ticket.status !== 'resolved' ? `
+              ${(ticket.status !== 'resolved' && ticket.status !== 'finalized' && ticket.status !== 'cancelled') ? `
                 <button class="btn btn-sm" id="btnFinishTicket" style="background:#059669;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Finalizar Chamado</button>
               ` : ''}
             ` : ''}
@@ -177,6 +178,10 @@ export async function renderTicketDetail(container, queryString) {
               ` : `
                 <button class="btn btn-sm" id="btnCreatePurchaseProcess" style="background:#0f766e;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Criar Processo de Compra</button>
               `}
+            ` : ''}
+
+            ${(ticket.status === 'resolved' || ticket.status === 'finalized' || ticket.status === 'cancelled') && canChangeStatus ? `
+              <button class="btn btn-sm" id="btnReopenTicket" style="background:#db2777;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Reabrir Chamado</button>
             ` : ''}
           </div>
         </div>
@@ -338,6 +343,26 @@ export async function renderTicketDetail(container, queryString) {
         </div>
 
       </main>
+
+      <!-- MODAL DE REABERTURA -->
+      <div id="reopenModal" class="modal-container" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1100; align-items:center; justify-content:center;">
+        <div class="card" style="width:100%; max-width:500px; padding:24px; position:relative; box-shadow:var(--shadow-lg); animation: slideUp 0.25s ease-out;">
+          <button id="closeReopenModalBtn" style="position:absolute; top:20px; right:20px; background:transparent; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);" title="Fechar">✕</button>
+          
+          <h3 style="margin:0 0 4px 0; font-size:1.25rem; font-weight:700; color:var(--text-primary);">Reabrir Chamado</h3>
+          <p style="margin:0 0 20px 0; font-size:0.88rem; color:var(--text-muted);">Por favor, insira a justificativa para reabrir este chamado. Ela será registrada no chat do chamado.</p>
+
+          <div style="margin-bottom:20px;">
+            <label style="display:block; font-size:0.85rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">Justificativa (Obrigatório)</label>
+            <textarea id="reopenJustificationInput" class="input" rows="4" placeholder="Escreva aqui o motivo de reabrir o chamado..." style="font-size:0.95rem; padding:10px 12px; background:var(--bg-card); resize:none; font-family:inherit;"></textarea>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:12px;">
+            <button class="btn btn-secondary" id="reopenCancelBtn" style="padding:10px 20px;">Cancelar</button>
+            <button class="btn btn-primary" id="reopenSubmitBtn" style="padding:10px 24px; font-weight:600; background:#db2777; border-color:#db2777;">Reabrir Chamado</button>
+          </div>
+        </div>
+      </div>
     `;
 
     // 3. Estilos adicionais para timeline e grid responsivo
@@ -362,6 +387,16 @@ export async function renderTicketDetail(container, queryString) {
         border-radius: 20px !important;
         font-weight: bold;
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      }
+      .modal-container {
+        display: none;
+      }
+      .modal-container.open {
+        display: flex !important;
+      }
+      @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
       }
       @media (max-width: 900px) {
         .ticket-detail-grid {
@@ -548,6 +583,59 @@ export async function renderTicketDetail(container, queryString) {
     // Acessar Processo de Compra
     document.getElementById('btnAccessPurchaseProcess')?.addEventListener('click', () => {
       navigateTo(`/purchase-processes?ticketId=${ticketId}`);
+    });
+
+    // Modal de Reabertura
+    const reopenModal = document.getElementById('reopenModal');
+    
+    document.getElementById('btnReopenTicket')?.addEventListener('click', () => {
+      const input = document.getElementById('reopenJustificationInput');
+      if (input) input.value = '';
+      reopenModal?.classList.add('open');
+    });
+
+    document.getElementById('closeReopenModalBtn')?.addEventListener('click', () => {
+      reopenModal?.classList.remove('open');
+    });
+    
+    document.getElementById('reopenCancelBtn')?.addEventListener('click', () => {
+      reopenModal?.classList.remove('open');
+    });
+
+    document.getElementById('reopenSubmitBtn')?.addEventListener('click', async () => {
+      const input = document.getElementById('reopenJustificationInput');
+      const justification = input ? input.value.trim() : '';
+      if (!justification) {
+        showToast('A justificativa é obrigatória!', 'error');
+        return;
+      }
+      
+      const submitBtn = document.getElementById('reopenSubmitBtn');
+      try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processando...';
+
+        // 1. Envia justificativa no chat
+        const formattedMsg = `⚠️ **Chamado Reaberto**\n**Justificativa:** ${justification}`;
+        await sendTicketMessage(ticketId, formattedMsg);
+
+        // 2. Atualiza status para 'reopened'
+        await updateTicketStatus(ticketId, 'reopened');
+        
+        showToast('Chamado reaberto com sucesso!', 'success');
+        reopenModal?.classList.remove('open');
+
+        await loadAllData();
+        renderPage();
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao reabrir chamado', 'error');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Reabrir Chamado';
+        }
+      }
     });
 
     // Colaboradores Form Show/Hide

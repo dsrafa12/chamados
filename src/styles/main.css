@@ -340,6 +340,11 @@ h3 { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
   background: #fee2e2;
   color: #991b1b;
 }
+.badge-reopened {
+  background: #fae8ff;
+  color: #a21caf;
+  border: 1px solid #f5d0fe;
+}
 
 /* ---- Header / Navbar ---- */
 .header {

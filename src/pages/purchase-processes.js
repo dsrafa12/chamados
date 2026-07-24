@@ -20,7 +20,8 @@ const STATUS_LABELS = {
   awaiting_supplier: 'Aguardando Fornecedor',
   awaiting_receipt: 'Aguardando Recebimento',
   finalized: 'Finalizado',
-  cancelled: 'Cancelado'
+  cancelled: 'Cancelado',
+  reopened: 'Reaberto'
 };
 
 export async function renderPurchaseProcesses(container, queryString) {
