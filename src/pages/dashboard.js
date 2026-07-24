@@ -21,6 +21,7 @@ const STATUS_LABELS = {
   order_issued: 'Pedido Emitido',
   awaiting_supplier: 'Aguardando Fornecedor',
   awaiting_receipt: 'Aguardando Recebimento',
+  received_partial: 'Recebido Parcial',
   finalized: 'Finalizado',
   cancelled: 'Cancelado',
   reopened: 'Reaberto'
@@ -533,6 +534,9 @@ export async function renderDashboard(container) {
     } else if (statusClass === 'awaiting_receipt') {
       badgeStyle = `min-width:125px; padding:4px 8px; font-size:0.72rem; display:inline-block; white-space:normal; line-height:1.15;`;
       labelHtml = `Aguardando<br>Recebimento`;
+    } else if (statusClass === 'received_partial') {
+      badgeStyle = `min-width:125px; padding:4px 8px; font-size:0.72rem; display:inline-block; white-space:normal; line-height:1.15;`;
+      labelHtml = `Recebido<br>Parcial`;
     }
 
     return `
