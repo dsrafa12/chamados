@@ -193,13 +193,16 @@ export async function renderTicketDetail(container, queryString) {
           <!-- COLUNA ESQUERDA (INFORMAÇÕES, CUSTOS E HISTÓRICO) -->
           <div style="display:flex;flex-direction:column;gap:20px;">
             
+            <!-- Card de Colaboradores Atrelados (Sempre visível acima do título) -->
+            <div class="card" style="padding:18px 24px; display:flex; flex-direction:column; gap:12px; border-radius:12px;">
+              <h4 style="margin:0; font-size:0.95rem; color:var(--text-primary); font-weight:700;">Colaboradores Atrelados</h4>
+              <div style="display:flex; flex-wrap:wrap; gap:8px;" id="permanentCollaboratorsList">
+                <!-- Badges dynamically rendered -->
+              </div>
+            </div>
+
             <!-- Painel de Gerenciamento de Colaboradores (Colapsado por padrão) -->
             <div id="collaboratorsForm" style="display:none;flex-direction:column;gap:14px;padding:18px;border:1px solid var(--border);border-radius:12px;background:var(--bg-app);box-shadow:var(--shadow-sm);">
-              <h4 style="margin:0;font-size:0.95rem;color:var(--text-primary);font-weight:700;">Colaboradores Atrelados</h4>
-              <div style="display:flex;flex-wrap:wrap;gap:8px;" id="linkedCollaboratorsList">
-                <!-- Badges -->
-              </div>
-              <hr style="border:none;border-top:1px solid var(--border);margin:2px 0;" />
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
                 <label style="font-size:0.88rem;font-weight:700;color:var(--text-secondary);">Atrelar Mais Colaboradores</label>
                 <input type="text" id="searchCollaboratorInput" class="input" placeholder="🔍 Buscar colaborador..." style="font-size:0.82rem;padding:6px 12px;background:var(--bg-card);border-radius:6px;border:1px solid var(--border);max-width:220px;" />
@@ -440,25 +443,25 @@ export async function renderTicketDetail(container, queryString) {
   }
 
   function renderCollaborators() {
-    const linkedListContainer = document.getElementById('linkedCollaboratorsList');
+    const permanentListContainer = document.getElementById('permanentCollaboratorsList');
     const availableListContainer = document.getElementById('availableCollaboratorsList');
     
-    if (linkedListContainer && availableListContainer) {
+    if (permanentListContainer && availableListContainer) {
       // Renderizar quem já está atrelado
       const creatorBadge = `
-        <span style="background:var(--primary-light);color:var(--primary);font-size:0.8rem;padding:6px 12px;border-radius:20px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+        <span style="background:var(--primary-light);color:var(--primary);font-size:0.85rem;padding:6px 14px;border-radius:20px;font-weight:600;display:inline-flex;align-items:center;gap:6px;box-shadow:var(--shadow-sm);">
           ✍️ ${escapeHtml(ticket.creator?.full_name || 'Autor')} (Autor)
         </span>
       `;
       const otherBadges = ticket.ticket_users
         ?.filter(tu => tu.profile && tu.profile.id !== ticket.created_by)
         .map(tu => `
-          <span style="background:var(--bg-app);color:var(--text-primary);font-size:0.8rem;padding:6px 12px;border-radius:20px;font-weight:500;border:1px solid var(--border);display:inline-flex;align-items:center;gap:4px;">
+          <span style="background:var(--bg-app);color:var(--text-primary);font-size:0.85rem;padding:6px 14px;border-radius:20px;font-weight:600;border:1px solid var(--border);display:inline-flex;align-items:center;gap:6px;box-shadow:var(--shadow-sm);">
             👤 ${escapeHtml(tu.profile.full_name || 'Colaborador')}
           </span>
         `).join('') || '';
       
-      linkedListContainer.innerHTML = creatorBadge + otherBadges;
+      permanentListContainer.innerHTML = creatorBadge + otherBadges;
 
       // Renderizar checklist de disponíveis
       const otherProfiles = allProfiles.filter(p => p.id !== ticket.created_by);
