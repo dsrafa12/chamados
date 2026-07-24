@@ -121,6 +121,7 @@ export async function renderTicketDetail(container, queryString) {
     const isMemberOfCompras = profile.departments?.some(d => d.name?.toLowerCase() === 'compras') || profile.role === 'director';
     const showStandardButtons = !purchaseProcess && canChangeStatus;
 
+    const isFinalized = ticket.status === 'resolved' || ticket.status === 'finalized' || ticket.status === 'cancelled';
     const isOverdue = ticket.deadline && new Date(ticket.deadline) < new Date();
     let statusClass = ticket.status;
     let statusLabel = STATUS_LABELS[ticket.status];
@@ -159,11 +160,11 @@ export async function renderTicketDetail(container, queryString) {
             <h2 style="margin:0;font-size:1.4rem;color:var(--text-primary);">Chamado Nº: ${ticket.ticket_number || ticket.id.slice(0, 8).toUpperCase()}</h2>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            ${canChangeStatus ? `
+            ${canChangeStatus && !isFinalized ? `
               <button class="btn btn-sm" id="btnCollaborators" style="background:#6366f1;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Colaboradores</button>
             ` : ''}
             
-            ${showStandardButtons ? `
+            ${showStandardButtons && !isFinalized ? `
               ${(ticket.status === 'open' || ticket.status === 'overdue') ? `
                 <button class="btn btn-sm" id="btnStartService" style="background:#3b82f6;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Iniciar Atendimento</button>
               ` : ''}
@@ -172,7 +173,7 @@ export async function renderTicketDetail(container, queryString) {
               ` : ''}
             ` : ''}
 
-            ${isMemberOfCompras ? `
+            ${isMemberOfCompras && !isFinalized ? `
               ${purchaseProcess ? `
                 <button class="btn btn-sm" id="btnAccessPurchaseProcess" style="background:#0284c7;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Acessar Processo de Compra</button>
               ` : `
@@ -180,7 +181,7 @@ export async function renderTicketDetail(container, queryString) {
               `}
             ` : ''}
 
-            ${(ticket.status === 'resolved' || ticket.status === 'finalized' || ticket.status === 'cancelled') && canChangeStatus ? `
+            ${isFinalized && canChangeStatus ? `
               <button class="btn btn-sm" id="btnReopenTicket" style="background:#db2777;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Reabrir Chamado</button>
             ` : ''}
           </div>
