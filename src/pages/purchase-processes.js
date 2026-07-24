@@ -7,7 +7,8 @@ import {
   updatePurchaseProcessStatus,
   updatePurchaseProcess,
   fetchTicketHistory,
-  sendTicketMessage
+  sendTicketMessage,
+  updateTicketStatus
 } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
@@ -22,6 +23,7 @@ const STATUS_LABELS = {
   order_issued: 'Pedido Emitido',
   awaiting_supplier: 'Aguardando Fornecedor',
   awaiting_receipt: 'Aguardando Recebimento',
+  received_partial: 'Recebido Parcial',
   finalized: 'Finalizado',
   cancelled: 'Cancelado',
   reopened: 'Reaberto'
@@ -625,9 +627,9 @@ export async function renderPurchaseProcesses(container, queryString) {
               <div>
                 <label style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">Recebimento</label>
                 <select id="modalReceiptStatusSelect" class="input" style="font-size:0.95rem; padding:10px 12px; background:var(--bg-app);">
-                  <option value="not_received" ${process.receipt_status === 'not_received' ? 'selected' : ''}>Não recebido</option>
-                  <option value="partial" ${process.receipt_status === 'partial' ? 'selected' : ''}>Recebido parcial</option>
-                  <option value="total" ${process.receipt_status === 'total' ? 'selected' : ''}>Recebido total</option>
+                  <option value="not_received" ${process.receipt_status === 'not_received' ? 'selected' : ''}>Não Recebido</option>
+                  <option value="partial" ${process.receipt_status === 'partial' ? 'selected' : ''}>Parcial</option>
+                  <option value="total" ${process.receipt_status === 'total' ? 'selected' : ''}>Total</option>
                 </select>
               </div>
             </div>
@@ -639,6 +641,7 @@ export async function renderPurchaseProcesses(container, queryString) {
 
             <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:8px;">
               <button class="btn btn-secondary" id="modalCancelBtn" style="padding:10px 20px;">Cancelar</button>
+              <button class="btn" id="modalReceiptBtn" style="padding:10px 20px; font-weight:600; background:#0f766e; color:white; transition:background 0.2s;">Recebimento</button>
               <button class="btn btn-primary" id="modalSaveBtn" style="padding:10px 24px; font-weight:600;">Salvar atualização</button>
             </div>
 
@@ -703,6 +706,127 @@ export async function renderPurchaseProcesses(container, queryString) {
           e.target.value = 'R$ ' + result;
         });
       }
+
+      document.getElementById('modalReceiptBtn')?.addEventListener('click', () => {
+        // Criar diálogo de opções: Recebido Parcial ou Total
+        const dialog = document.createElement('div');
+        dialog.id = 'receiptChoiceDialog';
+        dialog.style = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1200; display:flex; align-items:center; justify-content:center;`;
+        dialog.innerHTML = `
+          <div style="background:var(--bg-card); padding:28px; border-radius:16px; box-shadow:var(--shadow-lg); width:90%; max-width:450px; display:flex; flex-direction:column; gap:20px; animation:slideUp 0.2s ease-out;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text-primary);">Registrar Recebimento</h3>
+              <button id="choiceCloseBtn" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.25rem;">&times;</button>
+            </div>
+            <p style="margin:0; font-size:0.92rem; color:var(--text-secondary); line-height:1.5;">Como deseja registrar o recebimento deste processo de compra?</p>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
+              <button id="choicePartialBtn" class="btn" style="background:#d97706; color:white; font-weight:600; padding:12px; border-radius:8px; cursor:pointer;">Recebido Parcial</button>
+              <button id="choiceTotalBtn" class="btn" style="background:#16a34a; color:white; font-weight:600; padding:12px; border-radius:8px; cursor:pointer;">Recebido Total</button>
+              <button id="choiceCancelBtn" class="btn btn-secondary" style="padding:12px; border-radius:8px; cursor:pointer;">Cancelar</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(dialog);
+
+        const closeDialog = () => {
+          dialog.remove();
+        };
+
+        dialog.querySelector('#choiceCloseBtn')?.addEventListener('click', closeDialog);
+        dialog.querySelector('#choiceCancelBtn')?.addEventListener('click', closeDialog);
+
+        // Recebido Parcial
+        dialog.querySelector('#choicePartialBtn')?.addEventListener('click', async () => {
+          closeDialog();
+          try {
+            // Mudar o status do processo de compra e do chamado para "Recebido Parcial" (received_partial)
+            // e mudar o status de recebimento para "Parcial" (partial)
+            await updatePurchaseProcess(process.id, {
+              status: 'received_partial',
+              receipt_status: 'partial'
+            });
+
+            // Registrar observação no histórico
+            await sendTicketMessage(process.ticket_id, '📦 **Recebimento Parcial registrado**\nO status do processo de compra e do chamado foi atualizado para Recebido Parcial.');
+            
+            showToast('Recebimento Parcial registrado com sucesso!', 'success');
+            modal.classList.remove('open');
+            await loadData();
+          } catch (err) {
+            console.error(err);
+            showToast('Erro ao registrar recebimento parcial. Certifique-se de aplicar a migração 034 no banco.', 'error');
+          }
+        });
+
+        // Recebido Total
+        dialog.querySelector('#choiceTotalBtn')?.addEventListener('click', () => {
+          closeDialog();
+          // Abrir segundo diálogo perguntando se deseja finalizar o chamado
+          const yesNoDialog = document.createElement('div');
+          yesNoDialog.id = 'yesNoDialog';
+          yesNoDialog.style = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1300; display:flex; align-items:center; justify-content:center;`;
+          yesNoDialog.innerHTML = `
+            <div style="background:var(--bg-card); padding:28px; border-radius:16px; box-shadow:var(--shadow-lg); width:90%; max-width:400px; display:flex; flex-direction:column; gap:20px; animation:slideUp 0.2s ease-out;">
+              <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text-primary);">Finalizar Chamado?</h3>
+              <p style="margin:0; font-size:0.92rem; color:var(--text-secondary); line-height:1.5;">Já que foi recebido total, deseja finalizar o chamado mudando seu status para Resolvido?</p>
+              <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:8px;">
+                <button id="yesBtn" class="btn" style="background:#16a34a; color:white; font-weight:600; padding:10px 20px; border-radius:8px; cursor:pointer;">Sim</button>
+                <button id="noBtn" class="btn btn-secondary" style="padding:10px 20px; border-radius:8px; cursor:pointer;">Não</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(yesNoDialog);
+
+          const closeYesNo = () => {
+            yesNoDialog.remove();
+          };
+
+          // Se clicar em Sim
+          yesNoDialog.querySelector('#yesBtn')?.addEventListener('click', async () => {
+            closeYesNo();
+            try {
+              // Mudar status do chamado para Resolvido (resolved) e recebimento do processo para Total (total)
+              // Também finaliza o processo de compra (finalized)
+              await updatePurchaseProcess(process.id, {
+                status: 'finalized',
+                receipt_status: 'total'
+              });
+              await updateTicketStatus(process.ticket_id, 'resolved');
+
+              // Registrar observação no histórico
+              await sendTicketMessage(process.ticket_id, '✅ **Recebimento Total registrado**\nO chamado foi finalizado e marcado como Resolvido.');
+              
+              showToast('Recebimento Total registrado e chamado Resolvido!', 'success');
+              modal.classList.remove('open');
+              await loadData();
+            } catch (err) {
+              console.error(err);
+              showToast('Erro ao finalizar chamado e processo de compra.', 'error');
+            }
+          });
+
+          // Se clicar em Não
+          yesNoDialog.querySelector('#noBtn')?.addEventListener('click', async () => {
+            closeYesNo();
+            try {
+              // Mudar apenas o drop down recebimento para Total (total)
+              await updatePurchaseProcess(process.id, {
+                receipt_status: 'total'
+              });
+
+              // Registrar observação no histórico
+              await sendTicketMessage(process.ticket_id, '📦 **Recebimento Total registrado**\nStatus de recebimento atualizado para Total.');
+              
+              showToast('Recebimento Total registrado!', 'success');
+              modal.classList.remove('open');
+              await loadData();
+            } catch (err) {
+              console.error(err);
+              showToast('Erro ao atualizar recebimento.', 'error');
+            }
+          });
+        });
+      });
 
       document.getElementById('modalSaveBtn')?.addEventListener('click', async () => {
         const saveBtn = document.getElementById('modalSaveBtn');
