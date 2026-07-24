@@ -390,6 +390,29 @@ export async function renderTicketDetail(container, queryString) {
           </div>
         </div>
       </div>
+
+      <!-- MODAL DE CONFIRMAÇÃO DE PROCESSO DE COMPRA -->
+      <div id="purchaseConfirmModal" class="modal-container" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1100; align-items:center; justify-content:center;">
+        <div class="card" style="width:100%; max-width:480px; padding:24px; position:relative; box-shadow:var(--shadow-lg); animation: slideUp 0.25s ease-out; border-radius:12px;">
+          <button id="closePurchaseModalBtn" style="position:absolute; top:20px; right:20px; background:transparent; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);" title="Fechar">✕</button>
+          
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+            <span style="font-size:2rem;">🛒</span>
+            <h3 style="margin:0; font-size:1.25rem; font-weight:700; color:var(--text-primary);">Criar Processo de Compra</h3>
+          </div>
+          
+          <p style="margin:0 0 24px 0; font-size:0.95rem; color:var(--text-secondary); line-height:1.5;">
+            Deseja iniciar um processo de compra para este chamado? 
+            <br><br>
+            <strong>Nota:</strong> O status do chamado será alterado automaticamente para <strong>"Gerado Processo de Compra"</strong>.
+          </p>
+
+          <div style="display:flex; justify-content:flex-end; gap:12px;">
+            <button class="btn btn-secondary" id="purchaseCancelBtn" style="padding:10px 20px;">Cancelar</button>
+            <button class="btn btn-primary" id="purchaseConfirmBtn" style="padding:10px 24px; font-weight:600; background:#0f766e; border-color:#0f766e;">Sim, Criar</button>
+          </div>
+        </div>
+      </div>
     `;
 
     // 3. Estilos adicionais para timeline e grid responsivo
@@ -620,16 +643,42 @@ export async function renderTicketDetail(container, queryString) {
       }
     });
 
+    const purchaseConfirmModal = document.getElementById('purchaseConfirmModal');
+
     // Criar Processo de Compra
-    document.getElementById('btnCreatePurchaseProcess')?.addEventListener('click', async () => {
+    document.getElementById('btnCreatePurchaseProcess')?.addEventListener('click', () => {
+      purchaseConfirmModal?.classList.add('open');
+    });
+
+    // Fechar Modal de Compra
+    document.getElementById('closePurchaseModalBtn')?.addEventListener('click', () => {
+      purchaseConfirmModal?.classList.remove('open');
+    });
+    document.getElementById('purchaseCancelBtn')?.addEventListener('click', () => {
+      purchaseConfirmModal?.classList.remove('open');
+    });
+
+    // Confirmar Criação
+    document.getElementById('purchaseConfirmBtn')?.addEventListener('click', async () => {
+      const confirmBtn = document.getElementById('purchaseConfirmBtn');
       try {
+        if (confirmBtn) {
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = 'Processando...';
+        }
         await createPurchaseProcess(ticketId);
         showToast('Processo de compra criado com sucesso!', 'success');
+        purchaseConfirmModal?.classList.remove('open');
         await loadAllData();
         renderPage();
       } catch (err) {
         console.error(err);
         showToast('Erro ao criar processo de compra', 'error');
+      } finally {
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = 'Sim, Criar';
+        }
       }
     });
 
