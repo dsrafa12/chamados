@@ -595,9 +595,16 @@ export async function renderPurchaseProcesses(container, queryString) {
 
       // 2. Injetar layout completo
       inner.innerHTML = `
-        <button id="closeModalBtn" style="position:absolute; top:24px; right:24px; background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);" title="Fechar">✕</button>
-        <h2 style="margin:0 0 4px 0; font-size:1.6rem; font-weight:800; color:var(--text-primary);">${escapeHtml(ticket.title || '')}</h2>
-        <p style="margin:0 0 24px 0; font-size:0.92rem; color:var(--text-muted);">Chamado nº ${ticket.ticket_number || ''}</p>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; flex-wrap:wrap; gap:16px;">
+          <div>
+            <h2 style="margin:0 0 4px 0; font-size:1.6rem; font-weight:800; color:var(--text-primary);">${escapeHtml(ticket.title || '')}</h2>
+            <p style="margin:0; font-size:0.92rem; color:var(--text-muted);">Chamado nº ${ticket.ticket_number || ''}</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:16px;">
+            <button class="btn" id="modalReceiptBtn" style="padding:10px 20px; font-weight:600; background:#0f766e; color:white; border-radius:8px; font-size:0.88rem; transition:background 0.2s; cursor:pointer;">Recebimento</button>
+            <button id="closeModalBtn" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1; padding:4px;">✕</button>
+          </div>
+        </div>
 
         <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap: 32px;" class="modal-two-columns">
           
@@ -661,11 +668,13 @@ export async function renderPurchaseProcesses(container, queryString) {
               </div>
               <div>
                 <label style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">Recebimento</label>
-                <select id="modalReceiptStatusSelect" class="input" style="font-size:0.95rem; padding:10px 12px; background:var(--bg-app);">
-                  <option value="not_received" ${process.receipt_status === 'not_received' ? 'selected' : ''}>Não Recebido</option>
-                  <option value="partial" ${process.receipt_status === 'partial' ? 'selected' : ''}>Parcial</option>
-                  <option value="total" ${process.receipt_status === 'total' ? 'selected' : ''}>Total</option>
-                </select>
+                <div style="font-size:0.95rem; padding:10px 12px; background:var(--bg-app); border:1px solid var(--border); border-radius:8px; font-weight:600; color:${
+                  process.receipt_status === 'partial' ? '#b45309' : process.receipt_status === 'total' ? '#15803d' : 'var(--text-secondary)'
+                };">
+                  ${
+                    process.receipt_status === 'partial' ? 'Recebido Parcial' : process.receipt_status === 'total' ? 'Recebido Total' : 'Não Recebido'
+                  }
+                </div>
               </div>
             </div>
 
@@ -676,7 +685,6 @@ export async function renderPurchaseProcesses(container, queryString) {
 
             <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:8px;">
               <button class="btn btn-secondary" id="modalCancelBtn" style="padding:10px 20px;">Cancelar</button>
-              <button class="btn" id="modalReceiptBtn" style="padding:10px 20px; font-weight:600; background:#0f766e; color:white; transition:background 0.2s;">Recebimento</button>
               <button class="btn btn-primary" id="modalSaveBtn" style="padding:10px 24px; font-weight:600;">Salvar atualização</button>
             </div>
 
@@ -898,7 +906,7 @@ export async function renderPurchaseProcesses(container, queryString) {
           const newDeliveryForecast = forecastVal || null;
 
           const newBlockReason = document.getElementById('modalBlockReasonSelect').value;
-          const newReceiptStatus = document.getElementById('modalReceiptStatusSelect').value;
+          const newReceiptStatus = process.receipt_status;
 
           const updateData = {
             status: newStatus,
