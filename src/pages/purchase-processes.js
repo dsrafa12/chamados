@@ -32,6 +32,7 @@ export async function renderPurchaseProcesses(container, queryString) {
   let processes = [];
   let filteredProcesses = [];
   let selectedProcess = null;
+  let allProfiles = [];
   
   const params = new URLSearchParams(queryString || '');
   const targetTicketId = params.get('ticketId');
@@ -57,7 +58,12 @@ export async function renderPurchaseProcesses(container, queryString) {
 
   async function loadData() {
     try {
-      processes = await fetchPurchaseProcesses();
+      const [procData, profData] = await Promise.all([
+        fetchPurchaseProcesses(),
+        fetchAllProfiles()
+      ]);
+      processes = procData;
+      allProfiles = profData;
       filterAndRender();
 
       // Se veio com um ticketId específico na URL, abre automaticamente o detalhe/modal desse processo
@@ -89,7 +95,7 @@ export async function renderPurchaseProcesses(container, queryString) {
       return matchesSearch && matchesStatus;
     });
 
-    renderTable();
+    renderKanban();
   }
 
   function renderPage() {
@@ -121,25 +127,9 @@ export async function renderPurchaseProcesses(container, queryString) {
           </div>
         </div>
 
-        <!-- LISTAGEM -->
-        <div class="card" style="padding:0; overflow:hidden;">
-          <div style="overflow-x:auto;">
-            <table class="tickets-table" style="width:100%; border-collapse:collapse; text-align:left;">
-              <thead>
-                <tr style="background:var(--bg-app); border-bottom:1px solid var(--border);">
-                  <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); width:120px;">Chamado</th>
-                  <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary);">Título do Chamado</th>
-                  <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); width:200px;">Autor</th>
-                  <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); width:180px;">Origem Destino</th>
-                  <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); text-align:center; width:180px;">Status de Compra</th>
-                  <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); text-align:center; width:100px;">Ações</th>
-                </tr>
-              </thead>
-              <tbody id="purchaseProcessesTableBody">
-                <!-- Injetado dinamicamente -->
-              </tbody>
-            </table>
-          </div>
+        <!-- KANBAN BOARD CONTAINER -->
+        <div id="kanbanBoardContainer" class="kanban-board">
+          <!-- Injetado dinamicamente -->
         </div>
       </main>
 
@@ -151,7 +141,7 @@ export async function renderPurchaseProcesses(container, queryString) {
       </div>
     `;
 
-    // Estilos do Modal
+    // Estilos do Modal e Kanban
     const styleSheet = document.createElement("style");
     styleSheet.innerText = `
       @keyframes slideUp {
@@ -163,6 +153,19 @@ export async function renderPurchaseProcesses(container, queryString) {
       }
       .modal-container.open {
         display: flex !important;
+      }
+      .kanban-board {
+        display: flex;
+        gap: 20px;
+        overflow-x: auto;
+        padding: 10px 0 20px 0;
+        align-items: start;
+        -webkit-overflow-scrolling: touch;
+      }
+      .kanban-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md) !important;
+        border-color: var(--primary) !important;
       }
       @media (max-width: 800px) {
         .modal-two-columns {
@@ -177,92 +180,94 @@ export async function renderPurchaseProcesses(container, queryString) {
     bindPageEvents();
   }
 
-  function renderTable() {
-    const tbody = document.getElementById('purchaseProcessesTableBody');
-    if (!tbody) return;
+  function renderKanban() {
+    const boardContainer = document.getElementById('kanbanBoardContainer');
+    if (!boardContainer) return;
 
-    if (filteredProcesses.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="6" style="padding:40px; text-align:center; color:var(--text-muted); font-size:0.9rem;">
-            Nenhum processo de compra encontrado.
-          </td>
-        </tr>
-      `;
-      return;
-    }
+    // Se houver um filtro de status selecionado, mostrar apenas essa coluna. Caso contrário, todas.
+    const statusFilterVal = document.getElementById('filterProcessStatus')?.value || '';
+    const activeStatuses = statusFilterVal 
+      ? [statusFilterVal] 
+      : Object.keys(STATUS_LABELS);
 
-    tbody.innerHTML = filteredProcesses.map(p => {
-      const ticket = p.ticket || {};
-      const creatorName = ticket.creator?.full_name || '—';
-      const destName = ticket.destination?.name || 'Compras';
+    boardContainer.innerHTML = activeStatuses.map(statusKey => {
+      const colProcesses = filteredProcesses.filter(p => p.status === statusKey);
+      const statusTitle = STATUS_LABELS[statusKey].replace('<br>', ' ');
       
-      let badgeStyle = '';
-      if (p.status === 'awaiting_start') {
-        badgeStyle = 'background:#f3f4f6; color:#374151;';
-      } else if (p.status === 'in_analysis') {
-        badgeStyle = 'background:#e0e7ff; color:#3730a3;';
-      } else if (p.status === 'awaiting_info') {
-        badgeStyle = 'background:#fef3c7; color:#92400e;';
-      } else if (p.status === 'in_quotation') {
-        badgeStyle = 'background:#e0f2fe; color:#0369a1;';
-      } else if (p.status === 'in_approval') {
-        badgeStyle = 'background:#fae8ff; color:#86198f;';
-      } else if (p.status === 'order_issued') {
-        badgeStyle = 'background:#dcfce7; color:#166534;';
-      } else if (p.status === 'awaiting_supplier') {
-        badgeStyle = 'background:#ffedd5; color:#9a3412;';
-      } else if (p.status === 'awaiting_receipt') {
-        badgeStyle = 'background:#ecfeff; color:#0891b2;';
-      } else if (p.status === 'finalized') {
-        badgeStyle = 'background:#dcfce7; color:#15803d;';
-      } else if (p.status === 'cancelled') {
-        badgeStyle = 'background:#fee2e2; color:#991b1b;';
-      }
+      const cardsHtml = colProcesses.map(p => {
+        const ticket = p.ticket || {};
+        const creatorName = ticket.creator?.full_name || '—';
+        const respProfile = allProfiles.find(prof => prof.id === p.responsible_id);
+        const respName = respProfile ? (respProfile.full_name || respProfile.email) : 'Não atribuído';
 
-      let labelHtml = STATUS_LABELS[p.status] || p.status;
-      let finalBadgeStyle = `min-width:145px; padding:6px 12px; font-size:0.8rem; border-radius:12px; font-weight:600; display:inline-block; white-space:nowrap; ${badgeStyle}`;
-      if (p.status === 'awaiting_start') {
-        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
-        labelHtml = `Gerado Processo<br>de Compra`;
-      } else if (p.status === 'awaiting_info') {
-        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
-        labelHtml = `Aguardando<br>Informações`;
-      } else if (p.status === 'awaiting_supplier') {
-        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
-        labelHtml = `Aguardando<br>Fornecedor`;
-      } else if (p.status === 'awaiting_receipt') {
-        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
-        labelHtml = `Aguardando<br>Recebimento`;
-      }
+        // Valor formatado
+        let amountText = '';
+        if (p.purchase_amount !== null && p.purchase_amount !== undefined) {
+          amountText = 'R$ ' + parseFloat(p.purchase_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Previsão de entrega formatada
+        let forecastText = '';
+        if (p.delivery_forecast) {
+          const [year, month, day] = p.delivery_forecast.split('-');
+          forecastText = `${day}/${month}/${year}`;
+        }
+
+        // Badges de Alerta (Bloqueado/Recebido)
+        let warningHtml = '';
+        if (p.block_reason && p.block_reason !== 'none') {
+          warningHtml += `<span style="background:#fee2e2; color:#b91c1c; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:700;">⚠️ Bloqueado</span>`;
+        }
+        if (p.receipt_status === 'partial') {
+          warningHtml += `<span style="background:#fef3c7; color:#d97706; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:700;">📦 Parcial</span>`;
+        } else if (p.receipt_status === 'total') {
+          warningHtml += `<span style="background:#dcfce7; color:#15803d; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:700;">✅ Recebido</span>`;
+        }
+
+        return `
+          <div class="kanban-card" data-id="${p.id}" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:14px; box-shadow:var(--shadow-sm); cursor:pointer; transition:transform 0.15s, box-shadow 0.15s, border-color 0.15s; display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="color:var(--primary); font-size:0.82rem;">Nº: ${ticket.ticket_number || ''}</strong>
+              <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                ${warningHtml}
+              </div>
+            </div>
+            
+            <div style="font-weight:700; color:var(--text-primary); font-size:0.88rem; margin:4px 0; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
+              ${escapeHtml(ticket.title || '')}
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px; font-size:0.78rem; border-top:1px dashed var(--border); padding-top:8px; margin-top:4px;">
+              <div><span style="color:var(--text-muted);">Autor:</span> <span style="color:var(--text-secondary); font-weight:600;">${escapeHtml(creatorName)}</span></div>
+              <div><span style="color:var(--text-muted);">Resp:</span> <span style="color:var(--text-secondary); font-weight:600;">${escapeHtml(respName)}</span></div>
+              ${p.supplier ? `<div><span style="color:var(--text-muted);">Forn:</span> <span style="color:var(--text-secondary); font-weight:600;">${escapeHtml(p.supplier)}</span></div>` : ''}
+              ${amountText ? `
+                <div style="margin-top:4px; display:flex; justify-content:space-between; align-items:center;">
+                  <span style="color:var(--text-muted);">Valor:</span>
+                  <strong style="color:#0f766e; font-size:0.85rem;">${amountText}</strong>
+                </div>
+              ` : ''}
+              ${forecastText ? `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                  <span style="color:var(--text-muted);">Previsão:</span>
+                  <span style="color:var(--text-secondary); font-weight:600;">${forecastText}</span>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('') || `<p style="color:var(--text-muted); font-size:0.82rem; margin:16px 0; text-align:center; width:100%;">Sem processos</p>`;
 
       return `
-        <tr style="border-bottom:1px solid var(--border); transition:background 0.2s;">
-          <td style="padding:14px 20px;">
-            <a href="#/ticket?id=${p.ticket_id}" style="color:var(--primary); font-weight:700; text-decoration:none; font-size:0.9rem;">
-              Nº: ${ticket.ticket_number || ''}
-            </a>
-          </td>
-          <td style="padding:14px 20px;">
-            <span style="font-weight:600; color:var(--text-primary); font-size:0.9rem;">${escapeHtml(ticket.title || '')}</span>
-          </td>
-          <td style="padding:14px 20px; font-weight:500; color:var(--text-secondary); font-size:0.9rem;">
-            ${escapeHtml(creatorName)}
-          </td>
-          <td style="padding:14px 20px; font-weight:500; color:var(--text-secondary); font-size:0.9rem;">
-            ${escapeHtml(destName)}
-          </td>
-          <td style="padding:14px 20px; text-align:center;">
-            <span class="badge" style="${finalBadgeStyle}">
-              ${labelHtml}
-            </span>
-          </td>
-          <td style="padding:14px 20px; text-align:center;">
-            <button class="btn btn-sm btn-secondary manage-status-btn" data-id="${p.id}" style="padding:6px 12px; font-size:0.8rem; font-weight:600;">
-              Abrir
-            </button>
-          </td>
-        </tr>
+        <div class="kanban-column" style="flex:0 0 280px; background:var(--bg-app); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px; max-height:72vh; box-shadow:var(--shadow-sm);">
+          <div class="kanban-column-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border); padding-bottom:10px; margin-bottom:4px;">
+            <span class="kanban-column-title" style="font-size:0.88rem; font-weight:700; color:var(--text-primary); line-height:1.25;">${statusTitle}</span>
+            <span class="kanban-column-count" style="background:var(--border); color:var(--text-secondary); font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:12px;">${colProcesses.length}</span>
+          </div>
+          <div class="kanban-cards-container" style="display:flex; flex-direction:column; gap:12px; overflow-y:auto; flex-grow:1; padding:2px;">
+            ${cardsHtml}
+          </div>
+        </div>
       `;
     }).join('');
   }
@@ -271,11 +276,11 @@ export async function renderPurchaseProcesses(container, queryString) {
     document.getElementById('searchProcessInput')?.addEventListener('input', filterAndRender);
     document.getElementById('filterProcessStatus')?.addEventListener('change', filterAndRender);
 
-    // Delegar cliques para alterar status
-    document.getElementById('purchaseProcessesTableBody')?.addEventListener('click', (e) => {
-      const btn = e.target.closest('.manage-status-btn');
-      if (btn) {
-        const processId = btn.getAttribute('data-id');
+    // Delegar cliques nos cards do Kanban para abrir o modal de detalhes
+    document.getElementById('kanbanBoardContainer')?.addEventListener('click', (e) => {
+      const card = e.target.closest('.kanban-card');
+      if (card) {
+        const processId = card.getAttribute('data-id');
         const found = processes.find(p => p.id === processId);
         if (found) {
           openStatusModal(found);
