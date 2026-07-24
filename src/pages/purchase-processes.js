@@ -132,7 +132,7 @@ export async function renderPurchaseProcesses(container, queryString) {
           </div>
           <div style="display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--bg-card);">
             <button id="viewKanbanBtn" class="btn btn-sm" style="padding:8px 16px; border:none; border-radius:0; font-weight:600; cursor:pointer; background:${currentView === 'kanban' ? 'var(--primary)' : 'transparent'}; color:${currentView === 'kanban' ? 'white' : 'var(--text-secondary)'}; transition:background 0.2s;">
-              📋 Quadro
+              ⏹️ Quadro
             </button>
             <button id="viewListBtn" class="btn btn-sm" style="padding:8px 16px; border:none; border-radius:0; font-weight:600; cursor:pointer; background:${currentView === 'list' ? 'var(--primary)' : 'transparent'}; color:${currentView === 'list' ? 'white' : 'var(--text-secondary)'}; transition:background 0.2s;">
               ☰ Lista
@@ -194,8 +194,8 @@ export async function renderPurchaseProcesses(container, queryString) {
   }
 
   function renderKanban() {
-    const boardContainer = document.getElementById('kanbanBoardContainer');
-    if (!boardContainer) return;
+    const viewContainer = document.getElementById('viewContainer');
+    if (!viewContainer) return;
 
     // Se houver um filtro de status selecionado, mostrar apenas essa coluna. Caso contrário, todas.
     const statusFilterVal = document.getElementById('filterProcessStatus')?.value || '';
@@ -203,7 +203,7 @@ export async function renderPurchaseProcesses(container, queryString) {
       ? [statusFilterVal] 
       : Object.keys(STATUS_LABELS);
 
-    boardContainer.innerHTML = activeStatuses.map(statusKey => {
+    const columnsHtml = activeStatuses.map(statusKey => {
       const colProcesses = filteredProcesses.filter(p => p.status === statusKey);
       const statusTitle = STATUS_LABELS[statusKey].replace('<br>', ' ');
       
@@ -283,6 +283,8 @@ export async function renderPurchaseProcesses(container, queryString) {
         </div>
       `;
     }).join('');
+
+    viewContainer.innerHTML = `<div class="kanban-board">${columnsHtml}</div>`;
   }
 
   function renderList() {
