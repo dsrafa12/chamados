@@ -272,7 +272,7 @@ export async function renderPurchaseProcesses(container, queryString) {
       }).join('') || `<p style="color:var(--text-muted); font-size:0.82rem; margin:16px 0; text-align:center; width:100%;">Sem processos</p>`;
 
       return `
-        <div class="kanban-column" style="flex:0 0 280px; background:#eef2f6; border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:14px; max-height:75vh; box-shadow:var(--shadow-sm);">
+        <div class="kanban-column" style="flex:0 0 280px; background:#e2e8f0; border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:14px; max-height:75vh; box-shadow:var(--shadow-sm);">
           <div class="kanban-column-header" style="display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; margin-bottom:4px;">
             <span class="kanban-column-title" style="font-size:0.9rem; font-weight:700; color:var(--text-primary); line-height:1.25;">${statusTitle}</span>
             <span class="kanban-column-count" style="background:#ffffff; color:var(--text-secondary); font-size:0.75rem; font-weight:700; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; border:1px solid var(--border);">${colProcesses.length}</span>
