@@ -793,26 +793,63 @@ export async function renderPurchaseProcesses(container, queryString) {
         dialog.querySelector('#choiceCancelBtn')?.addEventListener('click', closeDialog);
 
         // Recebido Parcial
-        dialog.querySelector('#choicePartialBtn')?.addEventListener('click', async () => {
+        dialog.querySelector('#choicePartialBtn')?.addEventListener('click', () => {
           closeDialog();
-          try {
-            // Mudar o status do processo de compra e do chamado para "Recebido Parcial" (received_partial)
-            // e mudar o status de recebimento para "Parcial" (partial)
-            await updatePurchaseProcess(process.id, {
-              status: 'received_partial',
-              receipt_status: 'partial'
-            });
+          
+          // Abrir diálogo de comentário/mensagem
+          const partialCommentDialog = document.createElement('div');
+          partialCommentDialog.id = 'partialCommentDialog';
+          partialCommentDialog.style = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1300; display:flex; align-items:center; justify-content:center;`;
+          partialCommentDialog.innerHTML = `
+            <div style="background:var(--bg-card); padding:28px; border-radius:16px; box-shadow:var(--shadow-lg); width:90%; max-width:450px; display:flex; flex-direction:column; gap:20px; animation:slideUp 0.2s ease-out;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text-primary);">Detalhes do Recebimento Parcial</h3>
+                <button id="commentCloseBtn" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.25rem;">&times;</button>
+              </div>
+              <p style="margin:0; font-size:0.92rem; color:var(--text-secondary); line-height:1.5;">Descreva o que foi recebido parcialmente ou adicione outras informações do recebimento:</p>
+              <textarea id="partialCommentText" class="input" rows="4" placeholder="Escreva o detalhamento aqui..." style="background:var(--bg-app); resize:none; font-family:inherit; font-size:0.92rem; padding:10px 12px;"></textarea>
+              <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:8px;">
+                <button id="partialConfirmBtn" class="btn" style="background:#d97706; color:white; font-weight:600; padding:10px 20px; border-radius:8px; cursor:pointer;">Confirmar</button>
+                <button id="partialCancelBtn" class="btn btn-secondary" style="padding:10px 20px; border-radius:8px; cursor:pointer;">Cancelar</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(partialCommentDialog);
 
-            // Registrar observação no histórico
-            await sendTicketMessage(process.ticket_id, '📦 **Recebimento Parcial registrado**\nO status do processo de compra e do chamado foi atualizado para Recebido Parcial.');
-            
-            showToast('Recebimento Parcial registrado com sucesso!', 'success');
-            modal.classList.remove('open');
-            await loadData();
-          } catch (err) {
-            console.error(err);
-            showToast('Erro ao registrar recebimento parcial. Certifique-se de aplicar a migração 034 no banco.', 'error');
-          }
+          const closeCommentDialog = () => {
+            partialCommentDialog.remove();
+          };
+
+          partialCommentDialog.querySelector('#commentCloseBtn')?.addEventListener('click', closeCommentDialog);
+          partialCommentDialog.querySelector('#partialCancelBtn')?.addEventListener('click', closeCommentDialog);
+
+          partialCommentDialog.querySelector('#partialConfirmBtn')?.addEventListener('click', async () => {
+            const comment = partialCommentDialog.querySelector('#partialCommentText').value.trim();
+            closeCommentDialog();
+
+            try {
+              // Mudar o status do processo de compra e do chamado para "Recebido Parcial" (received_partial)
+              // e mudar o status de recebimento para "Parcial" (partial)
+              await updatePurchaseProcess(process.id, {
+                status: 'received_partial',
+                receipt_status: 'partial'
+              });
+
+              // Registrar mensagem no chat do chamado
+              const formattedMessage = comment 
+                ? `📦 **Recebido Parcial**\n${comment}` 
+                : `📦 **Recebido Parcial**`;
+
+              await sendTicketMessage(process.ticket_id, formattedMessage);
+              
+              showToast('Recebimento Parcial registrado com sucesso!', 'success');
+              modal.classList.remove('open');
+              await loadData();
+            } catch (err) {
+              console.error(err);
+              showToast('Erro ao registrar recebimento parcial. Certifique-se de aplicar a migração 034 no banco.', 'error');
+            }
+          });
         });
 
         // Recebido Total
