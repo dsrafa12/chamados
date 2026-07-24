@@ -238,7 +238,7 @@ export async function renderPurchaseProcesses(container, queryString) {
         }
 
         return `
-          <div class="kanban-card" data-id="${p.id}" style="background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:14px; box-shadow:var(--shadow-sm); cursor:pointer; transition:transform 0.15s, box-shadow 0.15s, border-color 0.15s; display:flex; flex-direction:column; gap:6px;">
+          <div class="kanban-card" data-id="${p.id}" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); cursor:pointer; transition:transform 0.15s, box-shadow 0.15s, border-color 0.15s; display:flex; flex-direction:column; gap:6px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <strong style="color:var(--primary); font-size:0.82rem;">Nº: ${ticket.ticket_number || ''}</strong>
               <div style="display:flex; gap:4px; flex-wrap:wrap;">
@@ -272,10 +272,10 @@ export async function renderPurchaseProcesses(container, queryString) {
       }).join('') || `<p style="color:var(--text-muted); font-size:0.82rem; margin:16px 0; text-align:center; width:100%;">Sem processos</p>`;
 
       return `
-        <div class="kanban-column" style="flex:0 0 280px; background:var(--bg-app); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px; max-height:72vh; box-shadow:var(--shadow-sm);">
-          <div class="kanban-column-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border); padding-bottom:10px; margin-bottom:4px;">
-            <span class="kanban-column-title" style="font-size:0.88rem; font-weight:700; color:var(--text-primary); line-height:1.25;">${statusTitle}</span>
-            <span class="kanban-column-count" style="background:var(--border); color:var(--text-secondary); font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:12px;">${colProcesses.length}</span>
+        <div class="kanban-column" style="flex:0 0 280px; background:#eef2f6; border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:14px; max-height:75vh; box-shadow:var(--shadow-sm);">
+          <div class="kanban-column-header" style="display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; margin-bottom:4px;">
+            <span class="kanban-column-title" style="font-size:0.9rem; font-weight:700; color:var(--text-primary); line-height:1.25;">${statusTitle}</span>
+            <span class="kanban-column-count" style="background:#ffffff; color:var(--text-secondary); font-size:0.75rem; font-weight:700; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; border:1px solid var(--border);">${colProcesses.length}</span>
           </div>
           <div class="kanban-cards-container" style="display:flex; flex-direction:column; gap:12px; overflow-y:auto; flex-grow:1; padding:2px;">
             ${cardsHtml}
