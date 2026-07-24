@@ -498,6 +498,14 @@ export async function renderPurchaseProcesses(container, queryString) {
         if (processId && targetStatus) {
           const found = processes.find(p => p.id === processId);
           if (found && found.status !== targetStatus) {
+            // Confirmar se for mudar para Em Aprovação
+            if (targetStatus === 'in_approval') {
+              const confirmed = await confirmInApprovalChange();
+              if (!confirmed) {
+                return;
+              }
+            }
+
             try {
               // Atualizar status do processo no banco de dados
               await updatePurchaseProcessStatus(processId, targetStatus);
@@ -510,6 +518,33 @@ export async function renderPurchaseProcesses(container, queryString) {
           }
         }
       }
+    });
+  }
+
+  function confirmInApprovalChange() {
+    return new Promise((resolve) => {
+      const yesNoDialog = document.createElement('div');
+      yesNoDialog.id = 'inApprovalConfirmDialog';
+      yesNoDialog.style = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1400; display:flex; align-items:center; justify-content:center;`;
+      yesNoDialog.innerHTML = `
+        <div style="background:var(--bg-card); padding:28px; border-radius:16px; box-shadow:var(--shadow-lg); width:90%; max-width:420px; display:flex; flex-direction:column; gap:20px; animation:slideUp 0.2s ease-out;">
+          <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text-primary);">Enviar para Aprovação?</h3>
+          <p style="margin:0; font-size:0.92rem; color:var(--text-secondary); line-height:1.5;">Deseja mudar o status para aprovação e enviar Alerta de aprovação para a Diretoria?</p>
+          <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:8px;">
+            <button id="inApprovalYesBtn" class="btn" style="background:var(--primary); color:white; font-weight:600; padding:10px 20px; border-radius:8px; cursor:pointer;">Sim</button>
+            <button id="inApprovalNoBtn" class="btn btn-secondary" style="padding:10px 20px; border-radius:8px; cursor:pointer;">Não</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(yesNoDialog);
+
+      const closeDialog = (result) => {
+        yesNoDialog.remove();
+        resolve(result);
+      };
+
+      yesNoDialog.querySelector('#inApprovalYesBtn')?.addEventListener('click', () => closeDialog(true));
+      yesNoDialog.querySelector('#inApprovalNoBtn')?.addEventListener('click', () => closeDialog(false));
     });
   }
 
@@ -692,6 +727,20 @@ export async function renderPurchaseProcesses(container, queryString) {
       // Vincular eventos do modal dinâmico
       document.getElementById('closeModalBtn')?.addEventListener('click', () => modal.classList.remove('open'));
       document.getElementById('modalCancelBtn')?.addEventListener('click', () => modal.classList.remove('open'));
+
+      let previousModalStatus = document.getElementById('modalStatusSelect')?.value || '';
+      document.getElementById('modalStatusSelect')?.addEventListener('change', async (e) => {
+        if (e.target.value === 'in_approval') {
+          const confirmed = await confirmInApprovalChange();
+          if (!confirmed) {
+            e.target.value = previousModalStatus;
+          } else {
+            previousModalStatus = 'in_approval';
+          }
+        } else {
+          previousModalStatus = e.target.value;
+        }
+      });
 
       const amountInput = document.getElementById('modalPurchaseAmountInput');
       if (amountInput) {
