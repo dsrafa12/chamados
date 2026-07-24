@@ -324,6 +324,11 @@ export async function renderPurchaseProcesses(container, queryString) {
         if (currentResp) comprasProfiles.push(currentResp);
       }
 
+      let formattedAmount = '';
+      if (process.purchase_amount !== null && process.purchase_amount !== undefined) {
+        formattedAmount = 'R$ ' + parseFloat(process.purchase_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
       // 2. Injetar layout completo
       inner.innerHTML = `
         <button id="closeModalBtn" style="position:absolute; top:24px; right:24px; background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);" title="Fechar">✕</button>
@@ -369,7 +374,7 @@ export async function renderPurchaseProcesses(container, queryString) {
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
               <div>
                 <label style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">Valor da compra</label>
-                <input type="number" step="0.01" id="modalPurchaseAmountInput" class="input" value="${process.purchase_amount || ''}" placeholder="Ex.: 5486.20" style="background:var(--bg-app);" />
+                <input type="text" id="modalPurchaseAmountInput" class="input" value="${escapeHtml(formattedAmount)}" placeholder="R$ 0,00" style="background:var(--bg-app);" />
               </div>
               <div>
                 <label style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">Previsão de entrega</label>
@@ -452,8 +457,23 @@ export async function renderPurchaseProcesses(container, queryString) {
       `;
 
       // Vincular eventos do modal dinâmico
+      // Vincular eventos do modal dinâmico
       document.getElementById('closeModalBtn')?.addEventListener('click', () => modal.classList.remove('open'));
       document.getElementById('modalCancelBtn')?.addEventListener('click', () => modal.classList.remove('open'));
+
+      const amountInput = document.getElementById('modalPurchaseAmountInput');
+      if (amountInput) {
+        amountInput.addEventListener('input', (e) => {
+          let value = e.target.value.replace(/\D/g, '');
+          if (value === '') {
+            e.target.value = '';
+            return;
+          }
+          const options = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+          const result = (parseFloat(value) / 100).toLocaleString('pt-BR', options);
+          e.target.value = 'R$ ' + result;
+        });
+      }
 
       document.getElementById('modalSaveBtn')?.addEventListener('click', async () => {
         const saveBtn = document.getElementById('modalSaveBtn');
@@ -468,8 +488,9 @@ export async function renderPurchaseProcesses(container, queryString) {
           const newOrderNumber = document.getElementById('modalOrderNumberInput').value.trim() || null;
           const newSupplier = document.getElementById('modalSupplierInput').value.trim() || null;
           
-          const amountVal = document.getElementById('modalPurchaseAmountInput').value.trim();
-          const newPurchaseAmount = amountVal ? parseFloat(amountVal) : null;
+          const amountRaw = document.getElementById('modalPurchaseAmountInput').value;
+          const amountClean = amountRaw.replace(/\D/g, '');
+          const newPurchaseAmount = amountClean ? parseFloat(amountClean) / 100 : null;
           
           const forecastVal = document.getElementById('modalDeliveryForecastInput').value;
           const newDeliveryForecast = forecastVal || null;
