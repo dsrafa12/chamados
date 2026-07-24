@@ -33,6 +33,7 @@ export async function renderPurchaseProcesses(container, queryString) {
   let filteredProcesses = [];
   let selectedProcess = null;
   let allProfiles = [];
+  let currentView = 'kanban';
   
   const params = new URLSearchParams(queryString || '');
   const targetTicketId = params.get('ticketId');
@@ -95,7 +96,11 @@ export async function renderPurchaseProcesses(container, queryString) {
       return matchesSearch && matchesStatus;
     });
 
-    renderKanban();
+    if (currentView === 'kanban') {
+      renderKanban();
+    } else {
+      renderList();
+    }
   }
 
   function renderPage() {
@@ -125,10 +130,18 @@ export async function renderPurchaseProcesses(container, queryString) {
               `).join('')}
             </select>
           </div>
+          <div style="display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--bg-card);">
+            <button id="viewKanbanBtn" class="btn btn-sm" style="padding:8px 16px; border:none; border-radius:0; font-weight:600; cursor:pointer; background:${currentView === 'kanban' ? 'var(--primary)' : 'transparent'}; color:${currentView === 'kanban' ? 'white' : 'var(--text-secondary)'}; transition:background 0.2s;">
+              📋 Quadro
+            </button>
+            <button id="viewListBtn" class="btn btn-sm" style="padding:8px 16px; border:none; border-radius:0; font-weight:600; cursor:pointer; background:${currentView === 'list' ? 'var(--primary)' : 'transparent'}; color:${currentView === 'list' ? 'white' : 'var(--text-secondary)'}; transition:background 0.2s;">
+              ☰ Lista
+            </button>
+          </div>
         </div>
 
-        <!-- KANBAN BOARD CONTAINER -->
-        <div id="kanbanBoardContainer" class="kanban-board">
+        <!-- VIEW CONTAINER -->
+        <div id="viewContainer">
           <!-- Injetado dinamicamente -->
         </div>
       </main>
@@ -272,19 +285,165 @@ export async function renderPurchaseProcesses(container, queryString) {
     }).join('');
   }
 
+  function renderList() {
+    const viewContainer = document.getElementById('viewContainer');
+    if (!viewContainer) return;
+
+    if (filteredProcesses.length === 0) {
+      viewContainer.innerHTML = `
+        <div class="card" style="padding:40px; text-align:center; color:var(--text-muted); font-size:0.9rem;">
+          Nenhum processo de compra encontrado nesta visualização.
+        </div>
+      `;
+      return;
+    }
+
+    const rowsHtml = filteredProcesses.map(p => {
+      const ticket = p.ticket || {};
+      const creatorName = ticket.creator?.full_name || '—';
+      const respProfile = allProfiles.find(prof => prof.id === p.responsible_id);
+      const respName = respProfile ? (respProfile.full_name || respProfile.email) : 'Não atribuído';
+
+      let badgeStyle = '';
+      if (p.status === 'awaiting_start') {
+        badgeStyle = 'background:#f3f4f6; color:#374151;';
+      } else if (p.status === 'in_analysis') {
+        badgeStyle = 'background:#e0e7ff; color:#3730a3;';
+      } else if (p.status === 'awaiting_info') {
+        badgeStyle = 'background:#fef3c7; color:#92400e;';
+      } else if (p.status === 'in_quotation') {
+        badgeStyle = 'background:#e0f2fe; color:#0369a1;';
+      } else if (p.status === 'in_approval') {
+        badgeStyle = 'background:#fae8ff; color:#86198f;';
+      } else if (p.status === 'order_issued') {
+        badgeStyle = 'background:#dcfce7; color:#166534;';
+      } else if (p.status === 'awaiting_supplier') {
+        badgeStyle = 'background:#ffedd5; color:#9a3412;';
+      } else if (p.status === 'awaiting_receipt') {
+        badgeStyle = 'background:#ecfeff; color:#0891b2;';
+      } else if (p.status === 'finalized') {
+        badgeStyle = 'background:#dcfce7; color:#15803d;';
+      } else if (p.status === 'cancelled') {
+        badgeStyle = 'background:#fee2e2; color:#991b1b;';
+      }
+
+      let labelHtml = STATUS_LABELS[p.status] || p.status;
+      let finalBadgeStyle = `min-width:145px; padding:6px 12px; font-size:0.8rem; border-radius:12px; font-weight:600; display:inline-block; white-space:nowrap; ${badgeStyle}`;
+      if (p.status === 'awaiting_start') {
+        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
+        labelHtml = `Gerado Processo<br>de Compra`;
+      } else if (p.status === 'awaiting_info') {
+        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
+        labelHtml = `Aguardando<br>Informações`;
+      } else if (p.status === 'awaiting_supplier') {
+        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
+        labelHtml = `Aguardando<br>Fornecedor`;
+      } else if (p.status === 'awaiting_receipt') {
+        finalBadgeStyle = `min-width:145px; padding:4px 8px; font-size:0.72rem; border-radius:12px; font-weight:600; display:inline-block; white-space:normal; line-height:1.15; ${badgeStyle}`;
+        labelHtml = `Aguardando<br>Recebimento`;
+      }
+
+      return `
+        <tr class="clickable-row" data-id="${p.id}" style="border-bottom:1px solid var(--border); cursor:pointer; transition:background 0.2s;">
+          <td style="padding:14px 20px;">
+            <strong style="color:var(--primary); font-weight:700; font-size:0.9rem;">
+              Nº: ${ticket.ticket_number || ''}
+            </strong>
+          </td>
+          <td style="padding:14px 20px;">
+            <span style="font-weight:600; color:var(--text-primary); font-size:0.9rem;">${escapeHtml(ticket.title || '')}</span>
+          </td>
+          <td style="padding:14px 20px; font-weight:500; color:var(--text-secondary); font-size:0.9rem;">
+            ${escapeHtml(creatorName)}
+          </td>
+          <td style="padding:14px 20px; font-weight:500; color:var(--text-secondary); font-size:0.9rem;">
+            ${escapeHtml(respName)}
+          </td>
+          <td style="padding:14px 20px; text-align:center;">
+            <span class="badge" style="${finalBadgeStyle}">
+              ${labelHtml}
+            </span>
+          </td>
+          <td style="padding:14px 20px; text-align:center;">
+            <button class="btn btn-sm btn-secondary" style="padding:6px 12px; font-size:0.8rem; font-weight:600;">
+              Abrir
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    viewContainer.innerHTML = `
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div style="overflow-x:auto;">
+          <table class="tickets-table" style="width:100%; border-collapse:collapse; text-align:left;">
+            <thead>
+              <tr style="background:var(--bg-app); border-bottom:1px solid var(--border);">
+                <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); width:120px;">Chamado</th>
+                <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary);">Título do Chamado</th>
+                <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); width:200px;">Autor</th>
+                <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); width:200px;">Responsável</th>
+                <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); text-align:center; width:180px;">Status de Compra</th>
+                <th style="padding:14px 20px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); text-align:center; width:100px;">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
   function bindPageEvents() {
     document.getElementById('searchProcessInput')?.addEventListener('input', filterAndRender);
     document.getElementById('filterProcessStatus')?.addEventListener('change', filterAndRender);
 
-    // Delegar cliques nos cards do Kanban para abrir o modal de detalhes
-    document.getElementById('kanbanBoardContainer')?.addEventListener('click', (e) => {
+    // Seletores de Visualização
+    const kanbanBtn = document.getElementById('viewKanbanBtn');
+    const listBtn = document.getElementById('viewListBtn');
+
+    kanbanBtn?.addEventListener('click', () => {
+      currentView = 'kanban';
+      if (kanbanBtn) {
+        kanbanBtn.style.background = 'var(--primary)';
+        kanbanBtn.style.color = 'white';
+      }
+      if (listBtn) {
+        listBtn.style.background = 'transparent';
+        listBtn.style.color = 'var(--text-secondary)';
+      }
+      filterAndRender();
+    });
+
+    listBtn?.addEventListener('click', () => {
+      currentView = 'list';
+      if (listBtn) {
+        listBtn.style.background = 'var(--primary)';
+        listBtn.style.color = 'white';
+      }
+      if (kanbanBtn) {
+        kanbanBtn.style.background = 'transparent';
+        kanbanBtn.style.color = 'var(--text-secondary)';
+      }
+      filterAndRender();
+    });
+
+    // Delegar cliques nos cards/linhas para abrir o modal de detalhes
+    document.getElementById('viewContainer')?.addEventListener('click', (e) => {
       const card = e.target.closest('.kanban-card');
       if (card) {
         const processId = card.getAttribute('data-id');
         const found = processes.find(p => p.id === processId);
-        if (found) {
-          openStatusModal(found);
-        }
+        if (found) openStatusModal(found);
+        return;
+      }
+      const row = e.target.closest('.clickable-row');
+      if (row) {
+        const processId = row.getAttribute('data-id');
+        const found = processes.find(p => p.id === processId);
+        if (found) openStatusModal(found);
       }
     });
   }
