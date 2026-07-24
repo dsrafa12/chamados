@@ -621,8 +621,16 @@ export async function renderTicketDetail(container, queryString) {
     });
 
     // Criar Processo de Compra
-    document.getElementById('btnCreatePurchaseProcess')?.addEventListener('click', () => {
-      alert('Funcionalidade em desenvolvimento');
+    document.getElementById('btnCreatePurchaseProcess')?.addEventListener('click', async () => {
+      try {
+        await createPurchaseProcess(ticketId);
+        showToast('Processo de compra criado com sucesso!', 'success');
+        await loadAllData();
+        renderPage();
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao criar processo de compra', 'error');
+      }
     });
 
     // Acessar Processo de Compra
