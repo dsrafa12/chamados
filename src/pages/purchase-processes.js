@@ -259,7 +259,7 @@ export async function renderPurchaseProcesses(container, queryString) {
           </td>
           <td style="padding:14px 20px; text-align:center;">
             <button class="btn btn-sm btn-secondary manage-status-btn" data-id="${p.id}" style="padding:6px 12px; font-size:0.8rem; font-weight:600;">
-              Alterar
+              Abrir
             </button>
           </td>
         </tr>
@@ -313,6 +313,17 @@ export async function renderPurchaseProcesses(container, queryString) {
 
       const ticket = process.ticket || {};
 
+      // Filtrar apenas usuários do grupo de Compras
+      const comprasProfiles = profilesList.filter(p => 
+        p.departments?.some(d => d.name?.toLowerCase() === 'compras')
+      );
+      
+      // Garantir que o responsável atual esteja na lista para não quebrar a seleção
+      if (process.responsible_id && !comprasProfiles.some(p => p.id === process.responsible_id)) {
+        const currentResp = profilesList.find(p => p.id === process.responsible_id);
+        if (currentResp) comprasProfiles.push(currentResp);
+      }
+
       // 2. Injetar layout completo
       inner.innerHTML = `
         <button id="closeModalBtn" style="position:absolute; top:24px; right:24px; background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted);" title="Fechar">✕</button>
@@ -337,7 +348,7 @@ export async function renderPurchaseProcesses(container, queryString) {
                 <label style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">Responsável</label>
                 <select id="modalResponsibleSelect" class="input" style="font-size:0.95rem; padding:10px 12px; background:var(--bg-app);">
                   <option value="">Selecione um responsável...</option>
-                  ${profilesList.map(p => `
+                  ${comprasProfiles.map(p => `
                     <option value="${p.id}" ${process.responsible_id === p.id ? 'selected' : ''}>${escapeHtml(p.full_name || p.email)}</option>
                   `).join('')}
                 </select>
