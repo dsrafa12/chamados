@@ -238,7 +238,7 @@ export async function renderPurchaseProcesses(container, queryString) {
         }
 
         return `
-          <div class="kanban-card" data-id="${p.id}" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); cursor:pointer; transition:transform 0.15s, box-shadow 0.15s, border-color 0.15s; display:flex; flex-direction:column; gap:6px;">
+          <div class="kanban-card" draggable="true" data-id="${p.id}" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); cursor:pointer; transition:transform 0.15s, box-shadow 0.15s, border-color 0.15s; display:flex; flex-direction:column; gap:6px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <strong style="color:var(--primary); font-size:0.82rem;">Nº: ${ticket.ticket_number || ''}</strong>
               <div style="display:flex; gap:4px; flex-wrap:wrap;">
@@ -277,7 +277,7 @@ export async function renderPurchaseProcesses(container, queryString) {
             <span class="kanban-column-title" style="font-size:0.9rem; font-weight:700; color:var(--text-primary); line-height:1.25;">${statusTitle}</span>
             <span class="kanban-column-count" style="background:#ffffff; color:var(--text-secondary); font-size:0.75rem; font-weight:700; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; border:1px solid var(--border);">${colProcesses.length}</span>
           </div>
-          <div class="kanban-cards-container" style="display:flex; flex-direction:column; gap:12px; overflow-y:auto; flex-grow:1; padding:2px;">
+          <div class="kanban-cards-container" data-status="${statusKey}" style="display:flex; flex-direction:column; gap:12px; overflow-y:auto; flex-grow:1; padding:2px; min-height:150px; transition:background 0.2s; border-radius:8px;">
             ${cardsHtml}
           </div>
         </div>
@@ -432,8 +432,10 @@ export async function renderPurchaseProcesses(container, queryString) {
       filterAndRender();
     });
 
+    const viewContainer = document.getElementById('viewContainer');
+
     // Delegar cliques nos cards/linhas para abrir o modal de detalhes
-    document.getElementById('viewContainer')?.addEventListener('click', (e) => {
+    viewContainer?.addEventListener('click', (e) => {
       const card = e.target.closest('.kanban-card');
       if (card) {
         const processId = card.getAttribute('data-id');
@@ -446,6 +448,63 @@ export async function renderPurchaseProcesses(container, queryString) {
         const processId = row.getAttribute('data-id');
         const found = processes.find(p => p.id === processId);
         if (found) openStatusModal(found);
+      }
+    });
+
+    // Delegar eventos de Arrasta e Solta (Drag and Drop)
+    viewContainer?.addEventListener('dragstart', (e) => {
+      const card = e.target.closest('.kanban-card');
+      if (card) {
+        card.style.opacity = '0.5';
+        e.dataTransfer.setData('text/plain', card.getAttribute('data-id'));
+      }
+    });
+
+    viewContainer?.addEventListener('dragend', (e) => {
+      const card = e.target.closest('.kanban-card');
+      if (card) {
+        card.style.opacity = '1';
+      }
+    });
+
+    viewContainer?.addEventListener('dragover', (e) => {
+      const container = e.target.closest('.kanban-cards-container');
+      if (container) {
+        e.preventDefault();
+        container.style.background = 'rgba(15,23,42,0.06)';
+      }
+    });
+
+    viewContainer?.addEventListener('dragleave', (e) => {
+      const container = e.target.closest('.kanban-cards-container');
+      if (container) {
+        container.style.background = 'transparent';
+      }
+    });
+
+    viewContainer?.addEventListener('drop', async (e) => {
+      const container = e.target.closest('.kanban-cards-container');
+      if (container) {
+        e.preventDefault();
+        container.style.background = 'transparent';
+        
+        const processId = e.dataTransfer.getData('text/plain');
+        const targetStatus = container.getAttribute('data-status');
+
+        if (processId && targetStatus) {
+          const found = processes.find(p => p.id === processId);
+          if (found && found.status !== targetStatus) {
+            try {
+              // Atualizar status do processo no banco de dados
+              await updatePurchaseProcessStatus(processId, targetStatus);
+              showToast('Status do processo atualizado por arrastar e soltar!', 'success');
+              await loadData();
+            } catch (err) {
+              console.error(err);
+              showToast('Erro ao atualizar status do processo', 'error');
+            }
+          }
+        }
       }
     });
   }
