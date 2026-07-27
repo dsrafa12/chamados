@@ -123,8 +123,27 @@ export async function renderNotifications(container) {
         typeBg = '#fae8ff';
       }
 
-      // Formatar Markdown simples da mensagem (ex: **Em Cotação**)
-      const formattedMessage = n.message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      // Traduzir chaves de status legados se houver
+      let cleanMessage = n.message
+        .replace(/\*\*overdue\*\*/g, '**Atrasado**')
+        .replace(/\*\*open\*\*/g, '**Aberto**')
+        .replace(/\*\*in_progress\*\*/g, '**Em Andamento**')
+        .replace(/\*\*awaiting_start\*\*/g, '**Gerado Processo de Compra**')
+        .replace(/\*\*in_analysis\*\*/g, '**Em Análise**')
+        .replace(/\*\*awaiting_info\*\*/g, '**Aguardando Informações**')
+        .replace(/\*\*in_quotation\*\*/g, '**Em Cotação**')
+        .replace(/\*\*in_approval\*\*/g, '**Em Aprovação**')
+        .replace(/\*\*order_issued\*\*/g, '**Pedido Emitido**')
+        .replace(/\*\*awaiting_supplier\*\*/g, '**Aguardando Fornecedor**')
+        .replace(/\*\*awaiting_receipt\*\*/g, '**Aguardando Recebimento**')
+        .replace(/\*\*received_partial\*\*/g, '**Recebido Parcial**')
+        .replace(/\*\*resolved\*\*/g, '**Resolvido**')
+        .replace(/\*\*finalized\*\*/g, '**Finalizado**')
+        .replace(/\*\*cancelled\*\*/g, '**Cancelado**')
+        .replace(/\*\*reopened\*\*/g, '**Reaberto**');
+
+      // Formatar Markdown simples da mensagem (ex: **Atrasado**)
+      const formattedMessage = cleanMessage.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
       return `
         <div class="notification-item ${isUnread ? 'unread' : ''}" data-id="${n.id}" data-ticket-id="${n.ticket_id}" style="background:var(--bg-card); padding:16px 20px; border-radius:14px; border:1px solid ${isUnread ? 'var(--primary)' : 'var(--border)'}; display:flex; align-items:flex-start; gap:16px; cursor:pointer; transition:all 0.2s; position:relative; box-shadow:${isUnread ? 'var(--shadow-md)' : 'var(--shadow-xs)'};">

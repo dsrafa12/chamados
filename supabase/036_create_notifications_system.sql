@@ -97,6 +97,9 @@ BEGIN
 
   -- Mapear label legível do status
   CASE NEW.status
+    WHEN 'open' THEN v_status_label := 'Aberto';
+    WHEN 'in_progress' THEN v_status_label := 'Em Andamento';
+    WHEN 'overdue' THEN v_status_label := 'Atrasado';
     WHEN 'awaiting_start' THEN v_status_label := 'Gerado Processo de Compra';
     WHEN 'in_analysis' THEN v_status_label := 'Em Análise';
     WHEN 'awaiting_info' THEN v_status_label := 'Aguardando Informações';
@@ -110,7 +113,6 @@ BEGIN
     WHEN 'finalized' THEN v_status_label := 'Finalizado'; v_type := 'ticket_resolved';
     WHEN 'cancelled' THEN v_status_label := 'Cancelado';
     WHEN 'reopened' THEN v_status_label := 'Reaberto';
-    WHEN 'in_progress' THEN v_status_label := 'Em Atendimento';
     ELSE v_status_label := NEW.status;
   END CASE;
 
