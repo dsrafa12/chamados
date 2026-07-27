@@ -57,11 +57,11 @@ BEGIN
 
   -- Notificar todos os colaboradores atrelados (exceto quem enviou e o criador já notificado)
   FOR rec IN 
-    SELECT tu.user_id 
+    SELECT tu.profile_id AS user_id 
     FROM public.ticket_users tu 
     WHERE tu.ticket_id = NEW.ticket_id 
-      AND tu.user_id != NEW.sender_id 
-      AND tu.user_id != v_ticket.created_by
+      AND tu.profile_id != NEW.sender_id 
+      AND tu.profile_id != v_ticket.created_by
   LOOP
     INSERT INTO public.notifications (user_id, ticket_id, title, message, type)
     VALUES (
@@ -131,10 +131,10 @@ BEGIN
 
   -- Notificar colaboradores atrelados ao chamado (exceto o autor já notificado)
   FOR rec IN 
-    SELECT tu.user_id 
+    SELECT tu.profile_id AS user_id 
     FROM public.ticket_users tu 
     WHERE tu.ticket_id = NEW.id 
-      AND tu.user_id != NEW.created_by
+      AND tu.profile_id != NEW.created_by
   LOOP
     INSERT INTO public.notifications (user_id, ticket_id, title, message, type)
     VALUES (
@@ -170,7 +170,7 @@ BEGIN
 
   INSERT INTO public.notifications (user_id, ticket_id, title, message, type)
   VALUES (
-    NEW.user_id,
+    NEW.profile_id,
     v_ticket.id,
     'Novo Atrelamento',
     '👤 Você foi atrelado ao Chamado Nº ' || COALESCE(v_ticket.ticket_number::text, 'S/N') || ' (' || v_ticket.title || ').',
