@@ -1001,6 +1001,22 @@ h3 { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
     display: none;
   }
 
+  /* Otimização da Tabela de Chamados para Celular (Mobile) */
+  .tickets-table th:nth-child(2), /* Origem */
+  .tickets-table th:nth-child(3), /* Destino */
+  .tickets-table th:nth-child(4), /* Data Abertura */
+  .tickets-table th:nth-child(5), /* Prioridade */
+  .tickets-table td:nth-child(2),
+  .tickets-table td:nth-child(3),
+  .tickets-table td:nth-child(4),
+  .tickets-table td:nth-child(5) {
+    display: none !important;
+  }
+
+  .tickets-table td {
+    padding: 14px 10px !important;
+  }
+
   .login-card {
     padding: 28px 22px;
     border-radius: var(--radius-lg);
