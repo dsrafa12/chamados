@@ -8,7 +8,8 @@ import {
   updatePurchaseProcess,
   fetchTicketHistory,
   sendTicketMessage,
-  updateTicketStatus
+  updateTicketStatus,
+  uploadTicketAttachment
 } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
@@ -685,6 +686,20 @@ export async function renderPurchaseProcesses(container, queryString) {
               <textarea id="modalNewObservationInput" class="input" rows="3" placeholder="A atualização será registrada no histórico com data e hora." style="background:var(--bg-app); resize:none; font-family:inherit;"></textarea>
             </div>
 
+            <!-- ANEXAR ARQUIVO NO PROCESSO DE COMPRA -->
+            <div>
+              <label style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">Anexo</label>
+              <div style="font-size:0.75rem; color:var(--text-muted); background:var(--bg-app); padding:8px 12px; border-radius:8px; border:1px solid var(--border); line-height:1.35; margin-bottom:8px;">
+                📎 <strong>Formatos permitidos:</strong> PNG, JPG, WEBP, GIF, PDF, DOCX, XLSX, TXT (Máx: <strong>5MB</strong>).
+              </div>
+              <input type="file" id="modalAttachmentInput" accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.docx,.xlsx,.txt" style="display:none;" />
+              <button class="btn btn-secondary" id="modalAttachFileBtn" type="button" style="padding:8px 14px; font-weight:600; font-size:0.85rem; display:inline-flex; align-items:center; gap:8px; border-radius:8px;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                Incluir Anexo
+              </button>
+              <span id="modalAttachmentName" style="margin-left:10px; font-size:0.82rem; font-weight:600; color:var(--primary);"></span>
+            </div>
+
             <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:8px;">
               <button class="btn btn-secondary" id="modalCancelBtn" style="padding:10px 20px;">Cancelar</button>
               <button class="btn btn-primary" id="modalSaveBtn" style="padding:10px 24px; font-weight:600;">Salvar atualização</button>
@@ -924,6 +939,47 @@ export async function renderPurchaseProcesses(container, queryString) {
         });
       });
 
+      // Eventos de Seleção de Anexo
+      const modalAttachBtn = document.getElementById('modalAttachFileBtn');
+      const modalFileInput = document.getElementById('modalAttachmentInput');
+      const modalFileNameSpan = document.getElementById('modalAttachmentName');
+      let selectedAttachmentFile = null;
+
+      modalAttachBtn?.addEventListener('click', () => {
+        modalFileInput?.click();
+      });
+
+      modalFileInput?.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validar Tamanho Máximo (5 MB)
+        const MAX_BYTES = 5 * 1024 * 1024;
+        if (file.size > MAX_BYTES) {
+          showToast(`O arquivo excede o limite máximo de 5MB! (${(file.size / (1024 * 1024)).toFixed(2)} MB)`, 'error');
+          modalFileInput.value = '';
+          selectedAttachmentFile = null;
+          if (modalFileNameSpan) modalFileNameSpan.textContent = '';
+          return;
+        }
+
+        // Validar Extensões Permitidas
+        const allowedExts = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf', 'docx', 'xlsx', 'txt'];
+        const fileExt = file.name.split('.').pop()?.toLowerCase();
+        if (!allowedExts.includes(fileExt)) {
+          showToast(`Formato não permitido! Permitidos: ${allowedExts.join(', ').toUpperCase()}`, 'error');
+          modalFileInput.value = '';
+          selectedAttachmentFile = null;
+          if (modalFileNameSpan) modalFileNameSpan.textContent = '';
+          return;
+        }
+
+        selectedAttachmentFile = file;
+        if (modalFileNameSpan) {
+          modalFileNameSpan.textContent = `📎 ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
+        }
+      });
+
       document.getElementById('modalSaveBtn')?.addEventListener('click', async () => {
         const saveBtn = document.getElementById('modalSaveBtn');
         try {
@@ -961,10 +1017,23 @@ export async function renderPurchaseProcesses(container, queryString) {
           // Atualizar processo de compra no Supabase
           await updatePurchaseProcess(process.id, updateData);
 
+          // Upload de Anexo se selecionado
+          if (selectedAttachmentFile) {
+            await uploadTicketAttachment(process.ticket_id, selectedAttachmentFile);
+          }
+
           // Tratar nova observação (gravar no chat do chamado)
           const newObs = document.getElementById('modalNewObservationInput').value.trim();
-          if (newObs) {
-            const formattedMsg = `📝 **Nova Observação de Compra**\n${newObs}`;
+          if (newObs || selectedAttachmentFile) {
+            let formattedMsg = '';
+            if (newObs && selectedAttachmentFile) {
+              formattedMsg = `📝 **Nova Observação de Compra**\n${newObs}\n📎 Anexo: **${selectedAttachmentFile.name}**`;
+            } else if (newObs) {
+              formattedMsg = `📝 **Nova Observação de Compra**\n${newObs}`;
+            } else if (selectedAttachmentFile) {
+              formattedMsg = `📎 Enviou anexo de compra: **${selectedAttachmentFile.name}**`;
+            }
+
             await sendTicketMessage(process.ticket_id, formattedMsg);
           }
 
