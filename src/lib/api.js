@@ -543,5 +543,69 @@ export async function runManualAttachmentCleanup() {
   return data;
 }
 
+// =====================
+// NOTIFICATIONS
+// =====================
+
+/** Busca notificações do usuário logado */
+export async function fetchNotifications(unreadOnly = false) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return [];
+
+  let query = supabase
+    .from('notifications')
+    .select('*, ticket:tickets(ticket_number, title)')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false });
+
+  if (unreadOnly) {
+    query = query.eq('is_read', false);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}
+
+/** Retorna apenas a contagem de notificações não lidas */
+export async function fetchUnreadNotificationsCount() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return 0;
+
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', session.user.id)
+    .eq('is_read', false);
+
+  if (error) return 0;
+  return count || 0;
+}
+
+/** Marca uma notificação como lida */
+export async function markNotificationAsRead(notificationId) {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', notificationId);
+
+  if (error) throw error;
+}
+
+/** Marca todas as notificações do usuário como lidas */
+export async function markAllNotificationsAsRead() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', session.user.id)
+    .eq('is_read', false);
+
+  if (error) throw error;
+}
+
+
 
 

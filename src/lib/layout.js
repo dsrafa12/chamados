@@ -21,6 +21,7 @@ export function getLayoutTemplate(profile, activePage) {
 
   // SVG Icons
   const ticketIcon = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12h6M12 9v6M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+  const bellIcon = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>`;
   const purchaseIcon = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>`;
   const deptIcon = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5"/></svg>`;
   const usersIcon = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 110-8 4 4 0 010 8zm14 14v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>`;
@@ -44,6 +45,11 @@ export function getLayoutTemplate(profile, activePage) {
         <nav class="sidebar-menu">
           <button class="sidebar-link ${activePage === 'tickets' ? 'active' : ''}" id="sidebarTickets">
             ${ticketIcon} Chamados
+          </button>
+
+          <button class="sidebar-link ${activePage === 'notifications' ? 'active' : ''}" id="sidebarNotifications" style="position:relative;">
+            ${bellIcon} Alertas
+            <span id="unreadNotificationsBadge" class="notification-badge" style="display:none; margin-left:auto; background:#dc2626; color:white; font-size:0.75rem; font-weight:700; padding:2px 7px; border-radius:10px;">0</span>
           </button>
           
           ${isMemberOfCompras ? `
@@ -90,15 +96,24 @@ export function getLayoutTemplate(profile, activePage) {
           </svg>
           Chamados
         </div>
-        <button class="mobile-menu-btn" id="mobileMenuBtn">
-          ${menuIcon}
-        </button>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <button id="mobileNotificationsBtn" style="background:transparent; border:none; color:var(--text-primary); cursor:pointer; position:relative; padding:4px;">
+            ${bellIcon}
+            <span id="mobileUnreadNotificationsBadge" class="notification-badge" style="display:none; position:absolute; top:-2px; right:-2px; background:#dc2626; color:white; font-size:0.68rem; font-weight:700; padding:1px 5px; border-radius:10px;">0</span>
+          </button>
+          <button class="mobile-menu-btn" id="mobileMenuBtn">
+            ${menuIcon}
+          </button>
+        </div>
       </header>
 
       <!-- MOBILE DROPDOWN MENU -->
       <nav class="mobile-dropdown" id="mobileDropdown">
         <button class="sidebar-link ${activePage === 'tickets' ? 'active' : ''}" id="mobileTickets">
           ${ticketIcon} Chamados
+        </button>
+        <button class="sidebar-link ${activePage === 'notifications' ? 'active' : ''}" id="mobileNotifications">
+          ${bellIcon} Alertas
         </button>
         
         ${isMemberOfCompras ? `
@@ -151,6 +166,7 @@ export function bindLayoutEvents(profile) {
   // Ações de Navegação
   const navActions = [
     { ids: ['sidebarTickets', 'mobileTickets'], path: '/dashboard' },
+    { ids: ['sidebarNotifications', 'mobileNotifications', 'mobileNotificationsBtn'], path: '/notifications' },
     { ids: ['sidebarPurchase', 'mobilePurchase'], path: '/purchase-processes' },
     { ids: ['sidebarDepts', 'mobileDepts'], path: '/admin/departments' },
     { ids: ['sidebarUsers', 'mobileUsers'], path: '/admin/users' },
@@ -163,6 +179,24 @@ export function bindLayoutEvents(profile) {
         navigateTo(action.path);
       });
     });
+  });
+
+  // Atualizar badge de notificações não lidas
+  import('../lib/api.js').then(({ fetchUnreadNotificationsCount }) => {
+    fetchUnreadNotificationsCount().then(count => {
+      const sidebarBadge = document.getElementById('unreadNotificationsBadge');
+      const mobileBadge = document.getElementById('mobileUnreadNotificationsBadge');
+      if (count > 0) {
+        if (sidebarBadge) {
+          sidebarBadge.textContent = count > 99 ? '99+' : count;
+          sidebarBadge.style.display = 'inline-block';
+        }
+        if (mobileBadge) {
+          mobileBadge.textContent = count > 99 ? '99+' : count;
+          mobileBadge.style.display = 'inline-block';
+        }
+      }
+    }).catch(() => {});
   });
 
   // Logout

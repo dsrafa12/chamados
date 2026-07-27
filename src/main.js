@@ -13,6 +13,7 @@ import { renderAdminUsers } from './pages/admin-users.js';
 import { renderTicketDetail } from './pages/ticket-detail.js';
 import { renderPurchaseProcesses } from './pages/purchase-processes.js';
 import { renderDatabaseAdmin } from './pages/database-admin.js';
+import { renderNotifications } from './pages/notifications.js';
 
 // Registrar rotas
 registerRoute('/login', renderLogin);
@@ -23,6 +24,7 @@ registerRoute('/admin/users', renderAdminUsers);
 registerRoute('/ticket', renderTicketDetail);
 registerRoute('/purchase-processes', renderPurchaseProcesses);
 registerRoute('/database-admin', renderDatabaseAdmin);
+registerRoute('/notifications', renderNotifications);
 
 // Listener de autenticação: redireciona automaticamente
 onAuthChange(async (event, session) => {
