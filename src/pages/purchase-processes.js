@@ -603,11 +603,14 @@ export async function renderPurchaseProcesses(container, queryString) {
             <h2 style="margin:0 0 4px 0; font-size:1.6rem; font-weight:800; color:var(--text-primary);">${escapeHtml(ticket.title || '')}</h2>
             <p style="margin:0; font-size:0.92rem; color:var(--text-muted);">Chamado nº ${ticket.ticket_number || ''}</p>
           </div>
-          <div style="display:flex; align-items:center; gap:16px;">
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <button class="btn" id="modalCancelPurchaseBtn" style="padding:10px 18px; font-weight:600; background:#dc2626; color:white; border-radius:8px; font-size:0.88rem; transition:background 0.2s; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+              🚫 Cancelar Compra
+            </button>
             ${process.receipt_status !== 'total' ? `
-              <button class="btn" id="modalReceiptBtn" style="padding:10px 20px; font-weight:600; background:#0f766e; color:white; border-radius:8px; font-size:0.88rem; transition:background 0.2s; cursor:pointer;">Recebimento</button>
+              <button class="btn" id="modalReceiptBtn" style="padding:10px 18px; font-weight:600; background:#0f766e; color:white; border-radius:8px; font-size:0.88rem; transition:background 0.2s; cursor:pointer;">Recebimento</button>
             ` : ''}
-            <button id="closeModalBtn" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1; padding:4px;">✕</button>
+            <button id="closeModalBtn" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1; padding:4px; margin-left:4px;">✕</button>
           </div>
         </div>
 
@@ -802,6 +805,86 @@ export async function renderPurchaseProcesses(container, queryString) {
           e.target.value = 'R$ ' + result;
         });
       }
+
+      // BOTÃO CANCELAR COMPRA
+      document.getElementById('modalCancelPurchaseBtn')?.addEventListener('click', () => {
+        // Criar diálogo de confirmação bonito
+        const cancelDialog = document.createElement('div');
+        cancelDialog.id = 'cancelPurchaseConfirmDialog';
+        cancelDialog.style = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1300; display:flex; align-items:center; justify-content:center;`;
+        cancelDialog.innerHTML = `
+          <div style="background:var(--bg-card); padding:28px; border-radius:16px; box-shadow:var(--shadow-lg); width:90%; max-width:460px; display:flex; flex-direction:column; gap:20px; animation:slideUp 0.2s ease-out;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:#dc2626; display:flex; align-items:center; gap:8px;">
+                🚫 Cancelar Processo de Compra?
+              </h3>
+              <button id="cancelCloseBtn" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.25rem;">&times;</button>
+            </div>
+            <p style="margin:0; font-size:0.92rem; color:var(--text-secondary); line-height:1.5;">
+              Ao cancelar a compra, o status do processo mudará para <strong>Cancelado</strong> e o chamado associado será finalizado como <strong>Resolvido</strong>.
+            </p>
+            <div>
+              <label style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-primary); margin-bottom:6px;">
+                Motivo do Cancelamento <span style="color:#dc2626;">*</span>
+              </label>
+              <textarea id="cancelReasonInput" class="input" rows="3" placeholder="Informe obrigatoriamente o motivo do cancelamento..." style="background:var(--bg-app); resize:none; font-family:inherit; font-size:0.92rem; padding:10px 12px; border:1px solid var(--border);"></textarea>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:4px;">
+              <button id="confirmCancelPurchaseBtn" class="btn" style="background:#dc2626; color:white; font-weight:600; padding:10px 20px; border-radius:8px; cursor:pointer;">Sim, Cancelar Compra</button>
+              <button id="dismissCancelPurchaseBtn" class="btn btn-secondary" style="padding:10px 20px; border-radius:8px; cursor:pointer;">Voltar</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(cancelDialog);
+
+        const closeCancelDialog = () => {
+          cancelDialog.remove();
+        };
+
+        cancelDialog.querySelector('#cancelCloseBtn')?.addEventListener('click', closeCancelDialog);
+        cancelDialog.querySelector('#dismissCancelPurchaseBtn')?.addEventListener('click', closeCancelDialog);
+
+        cancelDialog.querySelector('#confirmCancelPurchaseBtn')?.addEventListener('click', async () => {
+          const reason = cancelDialog.querySelector('#cancelReasonInput')?.value?.trim();
+          if (!reason) {
+            showToast('Informe obrigatoriamente o motivo do cancelamento!', 'error');
+            return;
+          }
+
+          const confirmBtn = cancelDialog.querySelector('#confirmCancelPurchaseBtn');
+          try {
+            if (confirmBtn) {
+              confirmBtn.disabled = true;
+              confirmBtn.textContent = 'Cancelando...';
+            }
+
+            // 1. Atualizar o processo de compra para status 'cancelled'
+            await updatePurchaseProcess(process.id, {
+              status: 'cancelled'
+            });
+
+            // 2. Atualizar o chamado associado para 'resolved'
+            await updateTicketStatus(process.ticket_id, 'resolved');
+
+            // 3. Incluir mensagem no chat do chamado
+            const chatMsg = `🚫 **Compra Não Autorizada / Cancelada**\n**Motivo:** ${reason}`;
+            await sendTicketMessage(process.ticket_id, chatMsg);
+
+            showToast('Compra cancelada com sucesso e chamado resolvido.', 'success');
+            closeCancelDialog();
+            modal.classList.remove('open');
+            await loadData();
+          } catch (err) {
+            console.error(err);
+            showToast('Erro ao cancelar processo de compra.', 'error');
+          } finally {
+            if (confirmBtn) {
+              confirmBtn.disabled = false;
+              confirmBtn.textContent = 'Sim, Cancelar Compra';
+            }
+          }
+        });
+      });
 
       document.getElementById('modalReceiptBtn')?.addEventListener('click', () => {
         // Criar diálogo de opções: Recebido Parcial ou Total
