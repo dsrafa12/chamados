@@ -601,7 +601,9 @@ export async function renderPurchaseProcesses(container, queryString) {
             <p style="margin:0; font-size:0.92rem; color:var(--text-muted);">Chamado nº ${ticket.ticket_number || ''}</p>
           </div>
           <div style="display:flex; align-items:center; gap:16px;">
-            <button class="btn" id="modalReceiptBtn" style="padding:10px 20px; font-weight:600; background:#0f766e; color:white; border-radius:8px; font-size:0.88rem; transition:background 0.2s; cursor:pointer;">Recebimento</button>
+            ${process.receipt_status !== 'total' ? `
+              <button class="btn" id="modalReceiptBtn" style="padding:10px 20px; font-weight:600; background:#0f766e; color:white; border-radius:8px; font-size:0.88rem; transition:background 0.2s; cursor:pointer;">Recebimento</button>
+            ` : ''}
             <button id="closeModalBtn" style="background:transparent; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-muted); line-height:1; padding:4px;">✕</button>
           </div>
         </div>
