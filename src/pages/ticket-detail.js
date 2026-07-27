@@ -307,6 +307,16 @@ export async function renderTicketDetail(container, queryString) {
               <p style="margin:0;font-size:0.95rem;color:var(--text-primary);background:var(--bg-app);padding:16px;border-radius:10px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.5;">${escapeHtml(ticket.description || 'Nenhuma descrição detalhada fornecida.')}</p>
             </div>
 
+            <!-- Card de Anexos do Chamado -->
+            <div id="attachmentsCard" class="card" style="padding:20px; ${attachments && attachments.length > 0 ? '' : 'display:none;'}">
+              <h4 style="margin:0 0 12px 0;font-size:1rem;color:var(--text-secondary);display:flex;align-items:center;gap:8px;">
+                📎 Anexos do Chamado <span style="font-size:0.8rem; font-weight:normal; color:var(--text-muted);">(${attachments ? attachments.length : 0})</span>
+              </h4>
+              <div id="ticketAttachmentsList" style="display:flex; flex-direction:column; gap:10px;">
+                <!-- Anexos renderizados -->
+              </div>
+            </div>
+
             <!-- Custos Externos -->
             <div class="card" style="padding:20px;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -513,6 +523,7 @@ export async function renderTicketDetail(container, queryString) {
 
     bindLayoutEvents(profile);
     bindEvents();
+    renderAttachments(attachments);
     renderCosts(costs);
     renderMessages(messages);
     renderHistory(history);
@@ -552,6 +563,67 @@ export async function renderTicketDetail(container, queryString) {
         `;
       }).join('');
     }
+  }
+
+  function renderAttachments(attachmentsList) {
+    const card = document.getElementById('attachmentsCard');
+    const container = document.getElementById('ticketAttachmentsList');
+    if (!card || !container) return;
+
+    if (!attachmentsList || attachmentsList.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+
+    card.style.display = 'block';
+    container.innerHTML = attachmentsList.map(att => {
+      if (att.is_expired) {
+        return `
+          <div style="font-size:0.82rem; color:#d97706; background:#fffbe8; border:1px solid #fef08a; padding:8px 12px; border-radius:8px; display:flex; align-items:center; gap:8px;">
+            <span>📎</span> <em>Anexo (<strong>${escapeHtml(att.file_name)}</strong>) expirado e excluído automaticamente.</em>
+          </div>
+        `;
+      }
+
+      const isImage = att.mime_type?.startsWith('image/');
+      const sizeMB = (att.file_size / (1024 * 1024)).toFixed(2);
+
+      if (isImage) {
+        return `
+          <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-app); border:1px solid var(--border); padding:10px 14px; border-radius:10px; flex-wrap:wrap; gap:10px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <a href="${att.publicUrl}" target="_blank">
+                <img src="${att.publicUrl}" alt="${escapeHtml(att.file_name)}" style="width:48px; height:48px; border-radius:6px; object-fit:cover; border:1px solid var(--border);" />
+              </a>
+              <div>
+                <strong style="font-size:0.88rem; color:var(--text-primary); display:block; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(att.file_name)}</strong>
+                <span style="font-size:0.75rem; color:var(--text-muted);">${sizeMB} MB • Imagem</span>
+              </div>
+            </div>
+            <a href="${att.publicUrl}" target="_blank" class="btn btn-secondary btn-sm" style="padding:6px 12px; font-size:0.8rem; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+              🔍 Visualizar
+            </a>
+          </div>
+        `;
+      }
+
+      return `
+        <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-app); border:1px solid var(--border); padding:10px 14px; border-radius:10px; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:40px; height:40px; background:var(--primary-light); color:var(--primary); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; font-weight:bold;">
+              📄
+            </div>
+            <div>
+              <strong style="font-size:0.88rem; color:var(--text-primary); display:block; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(att.file_name)}</strong>
+              <span style="font-size:0.75rem; color:var(--text-muted);">${sizeMB} MB • Documento</span>
+            </div>
+          </div>
+          <a href="${att.publicUrl}" target="_blank" download="${escapeHtml(att.file_name)}" class="btn btn-primary btn-sm" style="padding:6px 12px; font-size:0.8rem; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+            ⬇️ Baixar
+          </a>
+        </div>
+      `;
+    }).join('');
   }
 
   function renderCosts(costsList) {

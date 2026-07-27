@@ -9,7 +9,8 @@ import {
   fetchTicketHistory,
   sendTicketMessage,
   updateTicketStatus,
-  uploadTicketAttachment
+  uploadTicketAttachment,
+  fetchTicketAttachments
 } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
@@ -571,9 +572,10 @@ export async function renderPurchaseProcesses(container, queryString) {
     modal.classList.add('open');
 
     try {
-      const [profilesList, historyList] = await Promise.all([
+      const [profilesList, historyList, processAttachments] = await Promise.all([
         fetchAllProfiles(),
-        fetchTicketHistory(process.ticket_id)
+        fetchTicketHistory(process.ticket_id),
+        fetchTicketAttachments(process.ticket_id)
       ]);
 
       const ticket = process.ticket || {};
@@ -722,6 +724,26 @@ export async function renderPurchaseProcesses(container, queryString) {
                   <strong style="color:var(--text-secondary); display:block; margin-bottom:4px;">Descrição:</strong>
                   <span style="color:var(--text-primary); white-space:pre-wrap; line-height:1.4;">${escapeHtml(ticket.description || '')}</span>
                 </div>
+                ${processAttachments && processAttachments.length > 0 ? `
+                  <div style="margin-top:6px; border-top:1px dashed var(--border); padding-top:10px;">
+                    <strong style="color:var(--text-secondary); display:block; margin-bottom:6px;">📎 Anexos (${processAttachments.length}):</strong>
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                      ${processAttachments.map(att => {
+                        if (att.is_expired) {
+                          return `<div style="font-size:0.75rem; color:#d97706;">📎 ${escapeHtml(att.file_name)} (expirado)</div>`;
+                        }
+                        const isImg = att.mime_type?.startsWith('image/');
+                        return `
+                          <a href="${att.publicUrl}" target="_blank" ${isImg ? '' : `download="${escapeHtml(att.file_name)}"`} style="display:inline-flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--primary); font-weight:600; text-decoration:none; background:var(--bg-card); padding:4px 8px; border-radius:6px; border:1px solid var(--border);">
+                            <span>${isImg ? '📷' : '📄'}</span>
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">${escapeHtml(att.file_name)}</span>
+                            <span style="color:var(--text-muted); font-size:0.72rem; font-weight:normal;">(${(att.file_size / (1024 * 1024)).toFixed(2)} MB)</span>
+                          </a>
+                        `;
+                      }).join('')}
+                    </div>
+                  </div>
+                ` : ''}
               </div>
             </div>
 
