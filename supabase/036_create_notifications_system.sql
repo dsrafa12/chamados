@@ -39,12 +39,12 @@ BEGIN
   SELECT id, ticket_number, title, created_by INTO v_ticket FROM public.tickets WHERE id = NEW.ticket_id;
   IF NOT FOUND THEN RETURN NEW; END IF;
 
-  -- Obter nome do remetente
-  SELECT full_name INTO v_sender_name FROM public.profiles WHERE id = NEW.sender_id;
+  -- Obter nome do remetente (na tabela ticket_messages a coluna se chama profile_id)
+  SELECT full_name INTO v_sender_name FROM public.profiles WHERE id = NEW.profile_id;
   v_sender_name := COALESCE(v_sender_name, 'Um usuário');
 
   -- Notificar o criador do chamado (se não foi ele quem enviou)
-  IF v_ticket.created_by IS NOT NULL AND v_ticket.created_by != NEW.sender_id THEN
+  IF v_ticket.created_by IS NOT NULL AND v_ticket.created_by != NEW.profile_id THEN
     INSERT INTO public.notifications (user_id, ticket_id, title, message, type)
     VALUES (
       v_ticket.created_by,
@@ -60,7 +60,7 @@ BEGIN
     SELECT tu.profile_id AS user_id 
     FROM public.ticket_users tu 
     WHERE tu.ticket_id = NEW.ticket_id 
-      AND tu.profile_id != NEW.sender_id 
+      AND tu.profile_id != NEW.profile_id 
       AND tu.profile_id != v_ticket.created_by
   LOOP
     INSERT INTO public.notifications (user_id, ticket_id, title, message, type)
