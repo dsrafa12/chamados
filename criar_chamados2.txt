@@ -1,0 +1,428 @@
+num: 744
+
+assunto: "TUPIA AUTOMATICA"
+
+descricao: "RONALDO COMO ESTÁ A POSIÇÃO DA TUPIA , OS PINOS NOVOS E A SERRA AUTOMATICA . PRECISO DAS DATAS DAS TRES FERRAMENTAS LEMBRANDO QUE OS MODELOS DOS PINOS NÓS VAMOS CONVERSARMOS , PARA ALINHAR."
+
+data_criacao: 15 de julho de 2026 às 18:33:41 UTC-3
+
+nome: "Jose Carlos"
+
+prioridade: "Média"
+
+mensagens:
+
+"Jose Carlos - 16/7 12:16 - RONALDO , PORQUE NÃO OBITIVE O SEU RETORNO ATÉ AGORA ???"
+
+"Ronaldo Ferramentaria - 16/7 13:05 - A TUPIA ESTOU FAZENDOACREDITO QUE VAI MAIS UNS 30 A 40 DIAS SE EU NAO PARAR MUITO A SERRA AUTOMATICA ESTA CORTANDO A PROTECAO ASSIM QUE TIVER PRONTA 1 A 2 DIAS ESTA PRONTA PARA SOLTAR TRABALHAR OS PINOS O MATERIAL QUE VAI USINAR CHEGA TERCA FEIRA "
+
+num: 793
+
+assunto: "Tubo Do Climatizador Quebrado "
+
+descricao: "O neto estava levando com a empilhadeira ,no sábado de manhã estava levando os tubos mills - bateu e esta perigoso cair sobre colaborador , "
+
+data_criacao: 21 de julho de 2026 às 10:11:49 UTC-3
+
+nome: Não informado no registro
+
+prioridade: "Alta"
+
+mensagens: Nenhuma mensagem registrada
+
+num: 665
+
+assunto: "Setor Alumnio - Prensa De Ø 17,00 Desmontada"
+
+descricao: "Ronaldo, bom dia! precisamos de uma previsão da montagem desta prensa, como esta o andamento, esta tudo no jeito para iniciar a montagem."
+
+data_criacao: 26 de junho de 2026 às 10:14:10 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 11/7 9:24 - Porque este monte de RNC sem retorno , quero seja prenchido todas as RNCS e completas"
+
+"Ronaldo Ferramentaria - 13/7 15:59 - JA ESTA ABERTA A RNC PARA COMPRAS PARA MANDAR A ENGRENAGEM PARA MANDRILHAR"
+
+"Eder Pires - 15/7 7:06 - precisamos de uma posição, tem previsão?"
+
+num: 661
+
+assunto: "Setor Aluminio - Maquina De Solda Torck"
+
+descricao: "Bom dia! maquina de solda do colaborador Danilo montador, esta com as ventuinhas paradas."
+
+data_criacao: 26 de junho de 2026 às 09:08:40 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 11/7 9:22 - Porque não foi dado o retorno até agora?"
+
+"Jose Carlos - 18/7 17:40 - ESTOU AGUARDANDO A RESPOSTA"
+
+"Ronaldo Ferramentaria - 20/7 13:13 - VAI SER TIRADO HJ PARA VER SE TEM QUE PEDIR NOVA"
+
+num: 759
+
+assunto: "CLIETE PAVANELI"
+
+descricao: "COMO ESTA ESTE ORÇAMENTO ?"
+
+data_criacao: 16 de julho de 2026 às 12:49:10 UTC-3
+
+nome: "Jose Carlos"
+
+prioridade: "Média"
+
+mensagens:
+
+"Jose Carlos - 18/7 17:59 - SEM RESPOSTA"
+
+num: 802
+
+assunto: "FIO PARA ESTALAR OS REFLETORES"
+
+descricao: "100 METROS DE FIO PP2.5 X 2 VIA 4 FOTO CELULA 100 METRO CONDOITE CORRUGADO DE 1 POLEGADA"
+
+data_criacao: 22 de julho de 2026 às 10:34:45 UTC-3
+
+nome: "Ronaldo Ferramentaria"
+
+prioridade: "Alta"
+
+mensagens: Nenhuma mensagem registrada
+
+num: 792
+
+assunto: "Inventário Tubo 60 X 40"
+
+descricao: "Bom dia. Preciso do inventário atualizado do tubo 60 x 40, segundo o Paulo tem muito mais tubos do que o que foi me passado. Aguardo isso para finalizar a compra de aço do mês."
+
+data_criacao: 21 de julho de 2026 às 09:43:32 UTC-3
+
+nome: "Peter Prudencio"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Peter Prudencio - 21/7 11:39 - preciso também do inventário das malhas de ferro 4,3 x 15 x 15 que usamos nos gradis de segurança"
+
+"Marcelo kanesaki - 21/7 15:52 - DESCRITIVO SALDO ATUAL TUBO RET. 2,00 X 60 X 40 X 6000 58 barras TUBO RET. 2,25 X 60 X 40 X 6000 219 barras TUBO RET. 3,00 X 60 X 40 X 6000 201 barras ATUALIZADO NA DATA DE HOJE ...ABATIDO MARIANA . 610 BARRAS."
+
+num: 763
+
+assunto: "IMPLANTAÇÃO PROJETO 3 D"
+
+descricao: "PETER COMO ESTA O PROCESSO DE COMEÇAR A ENVIAR OS PROJETOS EM 3D ?"
+
+data_criacao: 16 de julho de 2026 às 12:56:20 UTC-3
+
+nome: "Jose Carlos"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 16/7 13:00 - Encaminhado - PCP"
+
+"Jose Carlos - 18/7 18:00 - SEM RESPOSTA"
+
+num: 447
+
+assunto: "Compressores "
+
+descricao: "Bom dia! tem um compressor que esta sem filtro e outro precisa verificar que não esta desligando no botão, toda vez que tem que desligar tem que desligar a geral."
+
+data_criacao: 31 de março de 2026 às 07:58:38 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Eder Pires - 2/7 9:11 - Comprrensor jogando muita agua na rede"
+
+"Jose Carlos - 4/7 18:59 - Foi resolvido este problema da Rede ?"
+
+"Ronaldo Ferramentaria - 8/7 14:21 - RONALDO MECANICO PASSOU PARA O TINTI E PARA JOSE CARLOS SOBRE OS SECADORES DO COMPRENSSORES QUE ESTAO COM PROBLEMA"
+
+"Jose Carlos - 11/7 9:15 - Este assunto, ja esta aprovodo, desde a semana passada, vc abriu uma RNC para compreas perguntando quando será instalado."
+
+"Ronaldo Ferramentaria - 13/7 14:07 - VOU ABRIR AGORA"
+
+"Jose Carlos - 18/7 17:35 - COMO FICOU ?"
+
+num: 663
+
+assunto: "Setor Triagem - Eletrica"
+
+descricao: " Bom dia! preciso que instale mais lampadas no setor e arremem as tomadas."
+
+data_criacao: 26 de junho de 2026 às 09:13:00 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 11/7 9:23 - Nenhum retorno porque ??????????? "
+
+"Jose Carlos - 18/7 17:42 - SEM RESPOSTA "
+
+num: 741
+
+assunto: "MAQUINA SERRA CIRCULAR - ALUMINIO"
+
+descricao: " PRECISAMOS DE UMA POSIÇÃO URGENTE PARA FUNCIONAR A NOVA MAQUINA. "
+
+data_criacao: 15 de julho de 2026 às 15:36:33 UTC-3
+
+nome: "Marcelo kanesaki"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 16/7 12:19 - RONALDO PORQUE ESTA SEM RESPOSTA"
+
+"Ronaldo Ferramentaria - 16/7 16:41 - ESTA PINTANDO A PROTENCAO ATE SEGUNDA FEIRA ESTA PRONTO"
+
+
+num: 653
+
+assunto: "Fabrica - Roteadores"
+
+descricao: "Precisa instalar as caixinhas de plastico para os roteadores."
+
+data_criacao: 24 de junho de 2026 às 11:32:12 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 4/7 19:07 - Foi instalada ?"
+
+"Jose Carlos - 11/7 9:21 - Resposta???????????????????????????"
+
+"Ronaldo Ferramentaria - 13/7 15:53 - PREVISTO PARA COLOCAR ESSA SEMANA"
+
+"Jose Carlos - 18/7 17:39 - FOI COLOCADO ?????"
+
+"Ronaldo Ferramentaria - 20/7 13:11 - DEVIDO AO TANTO DE MAQUINAS QUEBRADAS NAO CONSEGUIU COLOCAR"
+
+num: 723
+
+assunto: "Setor Aluminio - Prensa De Prender Mancal"
+
+descricao: "Bom dia! por favor pedir para prender no chão pois a mesma esta andando "
+
+data_criacao: 14 de julho de 2026 às 07:06:56 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 18/7 17:49 - SEM RESPOSTAS"
+
+"Ronaldo Ferramentaria - 20/7 13:27 - ESTA SENDO FEITO"
+
+num: 778
+
+assunto: "DOBRADEIRA AMADA"
+
+descricao: "A DOBRADEIRA AMADA PERDEU A REFERÊNCIA E NÃO ESTÁ REFERENCIANDO OS EIXOS"
+
+data_criacao: 17 de julho de 2026 às 15:02:08 UTC-3
+
+nome: "Raniele Thomaz"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 18/7 18:04 - FOI RESOLVIDO"
+
+"Ronaldo Ferramentaria - 21/7 8:23 - PASSADO PARA COMPRAS COMPRAR O SENSOR"
+
+"Ronaldo Ferramentaria - 21/7 8:54 - ESTAMOS AGUARDANDO O SENSOR PARA OS TESTES FINAIS"
+
+num: 705
+
+assunto: "Setor Aluminio - Nova Ferramenta Rasgo Costela"
+
+descricao: "Bom dia! conforme reunião precisamos fazer uma nova ferramenta para os rasgos da costela."
+
+data_criacao: 10 de julho de 2026 às 07:06:39 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 11/7 9:28 - Sem resposta ??????????????????????"
+
+"Ronaldo Ferramentaria - 20/7 13:21 - NAO CONSEGUIMOS COMECAR"
+
+num: 760
+
+assunto: "CLIENTE JUNDIAI"
+
+descricao: "PAULO , VC MARCOU CM ESSE CLIENTE A NOSSA VISITA ?"
+
+data_criacao: 16 de julho de 2026 às 12:50:10 UTC-3
+
+nome: "Jose Carlos"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Paulo Solcia - 20/7 7:48 - ZE CARLOS , ESTOU FALANDO COM ELE SEMPRE , AGORA O ORÇAMENTO ESTÁ EM ANALISE MAIS AVANÇADO , FALEI DE IR LA OU ELE VIR NOS CONHECER , ELE ME PEDIU ALHUNS DIAS SO "
+
+num: 701
+
+assunto: "Setor Aluminio - Prensa Rasgo Costela"
+
+descricao: "preciso que verifique esta prens com urgencia "
+
+data_criacao: 8 de julho de 2026 às 10:34:44 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 11/7 9:27 - Sem resposta ????????????????"
+
+"Jose Carlos - 18/7 17:44 - SEM RESPOSTAS"
+
+num: 429
+
+assunto: "MAQUINA DO LAVADOR - VAZAMENTO DE OLEO"
+
+descricao: " A MAQUINA DO LAVADOR MAIS ANTIGA ESTA COM VAZAMENTO DE OLEO, POR FAVOR VERIFICAR O MAIS BREVE POSSIVEL. PROCURAR MAURO GARCIA."
+
+data_criacao: 27 de março de 2026 às 08:45:11 UTC-3
+
+nome: "Marcelo kanesaki"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Ronaldo Ferramentaria - 2/7 8:32 - Encaminhado - Compras"
+
+"Compras - 3/7 15:58 - Encaminhado - Manutenção"
+
+"Jose Carlos - 4/7 18:58 - Como esta o status desta Maquina"
+
+"Jose Carlos - 4/7 18:58 - Encaminhado - Compras"
+
+"José Carlos Tinti - 6/7 13:54 - Pessoal, precisamos de mais detalhes sobre essa RNC, como compras pode ajudar? Precisa acionar algum fornecedor? Ficamos com dúvida nesse chamado."
+
+"Compras - 7/7 13:56 - Encaminhado - Manutenção"
+
+"Ronaldo Ferramentaria - 8/7 14:15 - ESSA MAQUINAS PRECISAMOS VER PARA TRAZER ELA PARA A MECANICA PARA ABRIR AQUI O PESSOAL DA LEMASA PEDIU 20 MIL PARA MEXER NESSE VAZAMENTO "
+
+"Jose Carlos - 11/7 9:14 - Ronaldo , vc ja pediu para buscar ? Ou simplesmente esta notificado , para esperarmos que alguem se manifesta, precisa ser direcionado para alguem levar até o local. Aguardo retorno"
+
+"Ronaldo Ferramentaria - 20/7 13:00 - OS LAVADORES ESTAO TRABALHANDO O VAZAMENTO NAO ATRAPALHA A MAQUINA TRABALHAR"
+
+num: 779
+
+assunto: "Ventosas Talha Laser"
+
+descricao: "TALHA ESTÁ COM AS DUAS VENTOSA DO MESMO LADO SEM FUNCIONAR, COM ISSO NÃO ESTÁ SEGURANDO AS CHAPAS."
+
+data_criacao: 20 de julho de 2026 às 07:20:42 UTC-3
+
+nome: "Raniele Thomaz"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Ronaldo Ferramentaria - 21/7 8:53 - FOI EFETUDO UMA CORRECAO PALIATIVA NA TAJHA DO SETOR DO LASER PARA PODER DAR CONTINUIDADE NA PRODUCAO DAS PECAS."
+
+num: 545
+
+assunto: "Setor Aluminio - Solda"
+
+descricao: "Precisamos fazer a rede de ar para cada box do soldador, tanto da montagem e tando ta solda."
+
+data_criacao: 19 de maio de 2026 às 11:34:39 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 4/7 19:01 - Como esta esta rede , ja fez ou ainda não ?"
+
+"Ronaldo Ferramentaria - 8/7 14:12 - JA ESTA FEITA SO ESTA FALTANDO CHEGAR UMA PECA"
+
+"Jose Carlos - 11/7 9:17 - Que peça e quando chegará ?"
+
+"Jose Carlos - 18/7 17:37 - RONALDO ESTOU AGUARDANDO SUA RESPOSTA "
+
+"Ronaldo Ferramentaria - 20/7 13:04 - AMANHA VAI SER FEITO TEM QUE SER NA HORA DO ALMOCO"
+
+num: 761
+
+assunto: "CONSTRUTORA HIROSHI"
+
+descricao: "ADRIEL , COMO FICOU ESTE CLIENTE ?"
+
+data_criacao: 16 de julho de 2026 às 12:51:42 UTC-3
+
+nome: "Jose Carlos"
+
+prioridade: "Média"
+
+mensagens:
+
+"Jose Carlos - 18/7 18:00 - SEM RSPOSTA"
+
+num: 711
+
+assunto: "Instalação Da Rede De Gás"
+
+descricao: "Marcelo , Como Esta A Instalação Da Rede De Gás? Era Para Esta Instalado Porque Não Está?"
+
+data_criacao: 11 de julho de 2026 às 09:32:09 UTC-3
+
+nome: "Jose Carlos"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Marcelo kanesaki - 14/7 14:49 - ESTAMOS AGUARDANDO O PEDREIRO PARA FAZER O MURO DE ARRIMO. VOU SOLICITAR AO PESSOAL DA WHITE MARTINS PARA APROVAÇÃO DO LOCAL."
+
+"Marcelo kanesaki - 15/7 15:39 - NA DATA DO DIA 16/07 O PESSOAL DA WHITE ESTARÁ AQUI PARA AVALIAÇÃO."
+
+"Marcelo kanesaki - 16/7 8:35 - ACABEI DE FALAR COM O ARI , FOI REMARCADO PARA APOS O ALMOÇO."
+
+"Marcelo kanesaki - 16/7 10:31 - Ari esteve na empresa e vamos ter que adptar o local de abastecimento dos cilindros, pois o caminhão não pode descarregar em lugar fora de desnivel. vamos ter que concretar para o caminhão entrar."
+
+"Jose Carlos - 18/7 17:46 - MARCELO , EXPLICA PARA COMPRAS O QUE TEM QUE SER FEITOS E PEDE PARA ELES, RESOLVEREM URGENTE"
+
+"Marcelo kanesaki - 20/7 8:18 - VOU FAZER UMA REUNIÃO COM COMPRAS PARA ENTENDIMENTO."

@@ -1,0 +1,503 @@
+num: 719
+
+assunto: "COMPRENSOR"
+
+descricao: "PESSOAL PRECISO DE UMA POSICAO DE QUANDO O TECNICO DO COMPRENSOR VIRA PARA ESTALAR OS SECADORES"
+
+data_criacao: 13 de julho de 2026 às 14:09:37 UTC-3
+
+nome: "Ronaldo Ferramentaria"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Compras - 13/7 14:34 - Qual compressor seria? os chigago da fabrica da fundiferro ou os Pumas do laser ?"
+
+"Compras - 13/7 14:34 - Status em Andamento - "
+
+"Ronaldo Ferramentaria - 13/7 15:37 - OS DA FABRICA CHICAGO"
+
+"José Carlos Tinti - 13/7 17:19 - Zé Pasiani, esse tema trata-se do que falamos hoje, o orçamento da Puma do secador e do reservatório."
+
+"José Carlos Tinti - 14/7 9:12 - Conforme reunião que tive ontem com Zé Pasiani, ele pediu para aguardar até agosto para voltar a falar sobre esse tema, não irá fazer esse trabalho nesse momento no compressor. Ele achou que o compressor do laser estava com problemas, do laser está ok, é da fábrica que precisa ser feito o trabalho do secador."
+
+"José Carlos Tinti - 14/7 9:12 - Encaminhado - Manutenção"
+
+"Ronaldo Ferramentaria - 14/7 13:06 - ZE CARLOS PASIANE COMPRAS ME INFORMOU QUE VC NAO AUTORIZOU A MANUTENCAO DOS SECADOR NOS COMPRENSORES CHICAGO DA FABRICA"
+
+"Jose Carlos - 18/7 17:49 - EU NÃO AUTORIZEI A COMPRA DO SECADOR E RESERVATÓRIO , NESTE MOMENTO . A MANUTENÇÃO JAMAIS VOU DEIXAR DE APROVAR."
+
+num: 800
+
+assunto: "FERRAMENTA DO V DO ELITE ESCADA METAX"
+
+descricao: "FERRAMENTA DE CORTE E DOBRA AFIAR O CORTE"
+
+data_criacao: 22 de julho de 2026 às 08:29:01 UTC-3
+
+nome: "Jando Bonfim"
+
+prioridade: "Alta"
+
+num: 713
+
+assunto: "GUILHOTINA CN01"
+
+descricao: "TROCAR AS FACAS"
+
+data_criacao: 13 de julho de 2026 às 07:01:05 UTC-3
+
+nome: "Jando Bonfim"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 18/7 17:47 - SEM RESPOSTAS"
+
+"Ronaldo Ferramentaria - 20/7 13:26 - AINDA NAO CONSEGUIU VAMOS NOS PROGRAMAR ESSA SEMANA"
+
+num: 715
+
+assunto: "Setor Aluminio - Braço Pneumatico "
+
+descricao: " Solicito a finalização da montagem do braço pneumático no Setor de Alumínio. O equipamento é essencial para a continuidade das operações do setor, e a conclusão da montagem evitará gargalos na produção e garantirá a segurança dos operadores na movimentação das peças."
+
+data_criacao: 13 de julho de 2026 às 08:35:19 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 13/7 12:34 - Coloca a data que será resolvido"
+
+"Ronaldo Ferramentaria - 16/7 16:47 - JA ESTAMOS FALANDO COM ALFATEK SE NAO CHEGOU VAMOS PEDIR PARA COMPRAR EM OUTRO LUGAR"
+
+num: 764
+
+assunto: "TOP SOLID E REWET"
+
+descricao: "PETER, QUEM ESTA TRABALHANDO NESSES PROCESSO ? PRECISO DA POSIÇÃO TODAS AS SEXTA-FEIRAS A EVOLUÇÃO "
+
+data_criacao: 16 de julho de 2026 às 12:58:13 UTC-3
+
+nome: "Jose Carlos"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Peter Prudencio - 16/7 13:04 - Top Solid conseguimos trabalhar mas deu problema no programa e estou falando com o suporte técnico. Revit nao está trabalhando pois precisamos do computador que queimou. Compramos outro computador para o Vaine e o do Vaine iria para Daiana. O da Daina é muito lento. "
+
+"Peter Prudencio - 17/7 21:13 - No Top Solid nao estamos conseguindo importar o pacote de paineis que o Matheus desenvolveu. Acionamos o suporte, ainda não resolveram, pediram um prazo para eles analisarem. Devemos ter retorno 2ª feira"
+
+"Peter Prudencio - 17/7 21:14 - Revit estamos no aguardo do computador da Daiana chegar para dar andamento"
+
+"Peter Prudencio - 20/7 13:27 - Tive uma reunião com o Matheus, ele falou que cobra da Fundiferro apenas 1 funcionário, valor do funcionario por dia R$ 390,00 Alinhamos que ele vai levantar quantas horas precisaria para concluir o que eles estão fazendo Eu vou levantar aqui o que mais faltaria para terminarmos este desenvolvimento e conseguir fazer todos os paineis pelo Top Solid (Fundiferro, Forsa, Sform) Iremos nos reunir quinta ou sexta-feira desta semana, vou passar para eles tudo o que faltaria a ser feito, ele vai estimar um tempo. Feito isso nos reuniremos todos nós, inclusive com o Zé Carlos, para definir como iremos fazer o restante dos desenvolvimentos. Por ex: 15 dias de trabalho por mes, 12 dias, etc. Assim já terá uma estimativa de custo total."
+
+"Peter Prudencio - 20/7 13:28 - Sobre fazer aqui dentro, eu e ele achamos que não daria certo, pois eles estão num nível muito acima, a ponto de importar uma lista inteira de paineis e ele criar sozinho, coisa que nem saberiamos como fazer. Nao compensaria ele gastar horas ensinando a gente fazer ,
+
+num: 754
+
+assunto: "ORÇAMENTO CONSTRUTORA 7 LM"
+
+descricao: "SERÁ ENVIADO HOJE ?"
+
+data_criacao: 16 de julho de 2026 às 12:41:49 UTC-3
+
+nome: "Jose Carlos"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 18/7 17:58 - SEM RESPOSTA"
+
+"Adriel - 20/7 8:03 - Zé, estavamos agurdando retorno do cliente sobre algumas duvidas desse orçamento, foi respondido por ele no final de semana, estamos seguindo com o levantamento da proposta hoje, é um orçamento mais complexo, pois se trata de uma adaptação. "
+
+num: 751
+
+assunto: "MAQUINA VAP (FAGNER)"
+
+descricao: " FOI SOLIICTADO A MANUTENÇÃO DA MAQUINA LAVADORA VAP DO DEPARTAMENTO DE LIMPEZA . PODERIA DAR UMA POSIÇÃO? A PARTIR DE AGORA FORMALIZADO."
+
+data_criacao: 16 de julho de 2026 às 10:32:29 UTC-3
+
+nome: "Marcelo kanesaki"
+
+prioridade: "Média"
+
+mensagens:
+
+"Jose Carlos - 16/7 12:13 - PRECISO QUE TODOS OS CHAMADOS ABERTOS SEJA RESPONDIDO COM DATA PREVISTA DO CONSERTO"
+
+"Marcelo kanesaki - 17/7 9:20 - TEMOA SUMA POSIÇÃO EM RELAÇÃO ?"
+
+"Jose Carlos - 18/7 17:57 - SEM RESPOSTAS"
+
+"Ronaldo Ferramentaria - 20/7 13:33 - QUANDO FOR ASSIM TRAZER A MAQUINA NA MANUTENCAO VAMOS TER QUE IR ATRAS DA MAQUINA QUE NAO ESTA AQUI"
+
+num: 799
+
+assunto: "REFLETOR PARA TERRENO DO ZE"
+
+descricao: "4 REFLETORES DE 2000WATS 5 REFETORES DE 500 WATS"
+
+data_criacao: 22 de julho de 2026 às 07:29:50 UTC-3
+
+nome: "Ronaldo Ferramentaria"
+
+prioridade: "Alta"
+
+num: 388
+
+assunto: "Setor Aluminio - Prensa Pequena Perto Da Ferramentaria"
+
+descricao: "Preciso que faça o levantamento para arrumar esta prensa."
+
+data_criacao: 19 de março de 2026 às 14:09:12 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Baixa"
+
+mensagens:
+
+"Jose Carlos - 4/7 18:56 - Esta Aberto desde Março ?"
+
+"Ronaldo Ferramentaria - 13/7 14:03 - ESSA PRENSA TEM QUE FAZER TD NELA EIXO BUCHA TD NOVO ACHO QUE NAO COMPENSA FAZER"
+
+"Jose Carlos - 18/7 17:32 - RONALDO , ME PROCURA PARA FALARMOS SOBRE ESTA PRENSA."
+
+num: 685
+
+assunto: "FERRAMENTA - ESTAMPO FAQUETA 32"
+
+descricao: " SOLICITAÇÃO DE CONSERTO DA FERRAMENTA DO ESTAMPO FAQUETA 32. PROCURAR JANDO PARA MAIS DETALHES."
+
+data_criacao: 2 de julho de 2026 às 13:42:17 UTC-3
+
+nome: "Marcelo kanesaki"
+
+prioridade: "Média"
+
+mensagens:
+
+"Jose Carlos - 11/7 9:26 - Novamente sem resposta, não foi ficar aceitandoisto, essas chamadas são de extrama necessidade "
+
+"Ronaldo Ferramentaria - 20/7 13:20 - ESSA FERRAMENTA TEM QUE FAZER NOVA A VELHA TA COMDENADA"
+
+num: 801
+
+assunto: "Compras Caneta Feira"
+
+descricao: "Precisamos de uma posição sobre a compra das canetas da feira, ela precisa estar na empresa até 05/08 pois será o dia que o Luciano ira sair para a feira levando a forma e itens que iremos expor."
+
+data_criacao: 22 de julho de 2026 às 09:50:10 UTC-3
+
+nome: "Matheus Boseli"
+
+prioridade: "Alta"
+
+num: 710
+
+assunto: "Setor Pré Montagem - Furadeira Bancada"
+
+descricao: "Por favor verificar com maxima urgencia a furadeira que esta com Zé Paulo, correia fica escapando."
+
+data_criacao: 10 de julho de 2026 às 16:40:52 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 11/7 9:29 - Sem resposta ??????????????????????"
+
+"Jose Carlos - 18/7 17:45 - SEM RESPOSTAS"
+
+"Ronaldo Ferramentaria - 20/7 13:25 - VAMOS TIRAR TEM QUE TIRAR E PEDIR NOVA"
+
+num: 766
+
+assunto: "PEÇAS RIO DE JANEIRO"
+
+descricao: "QUAL PROGRAMAÇÃO DO CONSERTO DAS PEÇAS DO RIO DE JANEIRO MRV. QUAL CHAMADO É O DO ÉDER ?"
+
+data_criacao: 16 de julho de 2026 às 13:03:00 UTC-3
+
+nome: "Jose Carlos"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 18/7 18:01 - SEM RESPOSTA"
+
+"Marcelo kanesaki - 20/7 8:07 - fo efetuado o Romaneio e estamos marcando uma reunião para definir a real sobre yodo o material..o que fazer."
+
+num: 757
+
+assunto: "CONSTRUTORA COELHO"
+
+descricao: "COMO ESTÁ O ORÇAMENTO DESTE CLIENTE ?"
+
+data_criacao: 16 de julho de 2026 às 12:46:18 UTC-3
+
+nome: "Jose Carlos"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 18/7 17:59 - SEM RESPOSTA"
+
+num: 670
+
+assunto: "Setor Aluminio - Ferramenta De Cortar Cantos"
+
+descricao: "Bom dia!, ja faz tempo que venho falando pra fazer uma ferramenta para cortar os cantos dos paienis com BORDA de 80, Ronaldo colocar nas sua pendencia para fazer esta ferramenta."
+
+data_criacao: 29 de junho de 2026 às 08:04:02 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 11/7 9:25 - Ronaldo novamente sem resposta porque???????????????"
+
+"Jose Carlos - 18/7 17:43 - CONTINUA SEM RESPOSTAS"
+
+"Ronaldo Ferramentaria - 20/7 13:18 - ZE ESTAMOS FAZENDO A TUPIA E A FERRAMENTA DE RASGAR PINO NOVA"
+
+num: 597
+
+assunto: "FR- 04 -FURADEIRA RADIAL BERGONZI"
+
+descricao: "MAQUINA COM VAZAMENTO DE ÓLEO"
+
+data_criacao: 9 de junho de 2026 às 08:25:28 UTC-3
+
+nome: "Jando Bonfim"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 4/7 19:03 - Este vazamento foi arrumado ?"
+
+"Ronaldo Ferramentaria - 8/7 14:23 - AINDA NAO VAMOS TENTAR TIRAR O VAZAMENTO"
+
+"Jose Carlos - 11/7 9:19 - Quando esta programado , precisa ser colocada a data que será executado o sefviço , não apenas vamos consertar."
+
+"Jose Carlos - 18/7 17:38 - RONALDO DESDE 11/07 ESTOU AGUARDANDO SEU RETORNO"
+
+"Ronaldo Ferramentaria - 20/7 13:08 - ZE FALEI COM O JANDO E ELE FALOU QUE NAO PODE PARAR A MAQUINA"
+
+num: 709
+
+assunto: "Setor Aluminio - Ferramenta Nova De Rasgo De Faqueta"
+
+descricao: "boa tarde! precisamos com maxima urgencia "
+
+data_criacao: 10 de julho de 2026 às 16:39:49 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 11/7 9:29 - Sem respostas ????????????????????????"
+
+"Jose Carlos - 18/7 17:45 - SEM RESPOSTAS"
+
+"Ronaldo Ferramentaria - 20/7 13:23 - SE FOR A TUPIA NOVA ESTAMOS FAZENDO"
+
+"Eder Pires - 20/7 15:43 - sim é esta, tem previsão para conclusão desta ferramenta?"
+
+num: 403
+
+assunto: "Setor Aluminio - Prensa Rasgar Costela"
+
+descricao: "Desde quando arrumou esta prensa venho pedindo para colocar a proteção nos volantes, até o momento não foi colocado"
+
+data_criacao: 24 de março de 2026 às 08:17:55 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 4/7 18:57 - ??????? esta em aberto "
+
+"Eder Pires - 7/7 11:26 - auardando colocar proteção"
+
+"Jose Carlos - 11/7 9:11 - Onde esta a resposta ??????????????"
+
+"Ronaldo Ferramentaria - 13/7 14:05 - ESSA SEMANA VAMS VER SEM FALTA"
+
+"Jose Carlos - 18/7 17:33 - RONALDO FOI RESOLVIDO ?"
+
+"Ronaldo Ferramentaria - 20/7 13:17 - COMECAMOS A FAZER MAS PRECISAMOS PARAR PARA FAZER OUTRAS COISAS MAS VAMOS ACABAR"
+
+num: 561
+
+assunto: "PE-12- PRENSA"
+
+descricao: "PRENSA COM FOLGA NO MARTELO"
+
+data_criacao: 22 de maio de 2026 às 09:36:16 UTC-3
+
+nome: "Jando Bonfim"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 4/7 19:02 - Foi consertado esta prensa ?"
+
+"Jose Carlos - 11/7 9:18 - Resposta , não vou adimitir que fica sem resposta"
+
+"Jando Bonfim - 15/7 8:51 - Zé essa prensa é a prensa que foi comprado do Porquinho precisa dar uma melhorada no martelo."
+
+num: 624
+
+assunto: "FERRAMENTA DO MANCAL"
+
+descricao: ""
+
+data_criacao: 16 de junho de 2026 às 14:06:35 UTC-3
+
+nome: "Jando Bonfim"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 4/7 19:05 - O que tem esta ferramenta , que nada foi informado"
+
+"Ronaldo Ferramentaria - 8/7 11:01 - FERRAMENTA ESTA EM RIO PRETO NO CORTE A FIO PREVISAO DE ATE TERCA FEIRA ESTAR AQUI"
+
+"Jose Carlos - 18/7 17:39 - NOVAMENTE SEM RESPOSTA"
+
+"Ronaldo Ferramentaria - 20/7 13:09 - A FERRAMENTA ESTA EM RIO PRETO AMANHA E PRA ESTAR AQUI"
+
+num: 752
+
+assunto: "REFORMA DA PLAINA DO AGRICOLA"
+
+descricao: " CONVERSADO COM O SR. LUIS, SR. WILLIAN E COM O SR. JOSÉ CARLOS SOBRE A REFORMA DE NOSSA PLAINA E RESTRUTURAÇÃO DA MESMA PARA PODER-MOS FAZER RASGOS DE FAQUETAS INTERNAMENTE. PRECISAMOS URGENTE VER ESTA QUESTÃO."
+
+data_criacao: 16 de julho de 2026 às 11:07:43 UTC-3
+
+nome: "Ronaldo Borgue"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 16/7 12:12 - RONALDO , VEJA VC E LUIS , QUANDO CONSEGUE DEIXARBESTA AQUINA FUNCIONANDO E NOS INFORMA"
+
+"Jose Carlos - 18/7 17:58 - SEM RESPOSTA"
+
+num: 700
+
+assunto: "Setor Aluminio - Maquina De Solda Torck Renan Paulino"
+
+descricao: " Bom dia! preciso que de uma verificada na maquina de solda do colaborador por tive que retirar uma de outro setor."
+
+data_criacao: 8 de julho de 2026 às 10:16:06 UTC-3
+
+nome: "Eder Pires"
+
+prioridade: "Alta"
+
+mensagens:
+
+Jose Carlos - 18/7 18:03 - SEM RESPOSTA"
+
+num: 775
+
+assunto: "Pontos De Rede Sem Funcionamento"
+
+descricao: "Temos 2 potnos de rede sem funcionamento, porém ao acionado a JP, foi falado que o cabo não está chegando no switch"
+
+data_criacao: 17 de julho de 2026 às 09:04:30 UTC-3
+
+nome: "Peter Prudencio"
+
+prioridade: "Média"
+
+mensagens:
+
+"Jose Carlos - 18/7 18:03 - SEM RESPOSTA"
+
+num: 771
+
+assunto: "Dúvida Pacaembu"
+
+descricao: "Favor confirmar se haverá a segurança de laje a concretar Está na proposta linha de vida antiqueda, mas que não será furado o painel de laje. favor nos explicar como funcionará, pois ela precisa atravessar a laje."
+
+data_criacao: 16 de julho de 2026 às 17:27:44 UTC-3
+
+nome: "Peter Prudencio"
+
+prioridade: "Média"
+
+mensagens:
+
+"Peter Prudencio - 16/7 17:29 - além disso, não veio a quantidade da segurança laje a concretar, nem da linha de vida"
+
+"Matheus Boseli - 17/7 8:15 - Peter segurança laje a concretar vai ter sim. Quanto a linha de vida o Renato da Pacaembu pensa em colocar 04 ou seis postes da linha de vida fixando na forma, (ainda a definir) Quantidade dos acessorios esta no anexo."
+
+"Peter Prudencio - 17/7 9:01 - Matheus, obrigado. Porém para executar o projeto preciso entender como será feito o sistema de linha de vida. Não enxergo como não será furada a laje. "
+
+"Peter Prudencio - 17/7 9:02 - Outra coisa, no escopo está duas linhas de vida, mas são 4 ou 6?"
+
+"Matheus Boseli - 17/7 10:57 - Iremos ter uma posição dia 20/07 das pendencias e volto a indormar o que foi definido."
+
+num: 755
+
+assunto: "ORÇAMENTO EMCCAMP SÉ 70"
+
+descricao: "SERÁ ENVIADO HOJE ?"
+
+data_criacao: 16 de julho de 2026 às 12:43:52 UTC-3
+
+nome: "Jose Carlos"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Jose Carlos - 18/7 17:59 - SEM RESPOSTA"
+
+"Matheus Boseli - 20/7 8:44 - Levantamento feito, aguardando revisão da proposta para enviar ao cliente."
+
+num: 753
+
+assunto: "ABC"
+
+descricao: "Diretor José Carlos passou na sala e cobrou a posição da ABC, pediu pra abrir esse chamado para ficar registrado e ele conseguir ir vendo o desempenho do projeto."
+
+data_criacao: 16 de julho de 2026 às 11:08:47 UTC-3
+
+nome: "Matheus Boseli"
+
+prioridade: "Alta"
+
+mensagens:
+
+"Peter Prudencio - 16/7 12:53 - Precisamos fazer uma reunião para alinhar. Temos ABC entrando além da programação Novamente outra lista de paineis faltantes da Intendente. Tudo isso no meio dos projetos do mes. tudo urgente. Não consigo falar quando este projeto ficará pronto "
+
+"Peter Prudencio - 17/7 7:46 - Alinhado com o João Wictor, terminar a modulação no fim de semana, para segunda-feira termos a lista de peças e a área para enviar o orçamento."
+
+"Peter Prudencio - 20/7 17:10 - Enviado para o Paulo metragam e quantidade de paineis. Opção para fazer os projetos de fabricação fora de hora, o João faria e enviariamos para produção próxima segunda-feira dia 27/07. Total 105 peças"

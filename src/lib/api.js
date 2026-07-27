@@ -462,4 +462,86 @@ export async function updatePurchaseProcess(processId, updateData) {
   return data;
 }
 
+// =====================
+// ATTACHMENTS & DB ADMIN
+// =====================
+
+/** Upload de anexo para o Supabase Storage e registro de metadados */
+export async function uploadTicketAttachment(ticketId, file) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Não autenticado');
+
+  // Gerar caminho seguro no Storage
+  const fileExt = file.name.split('.').pop();
+  const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const filePath = `${ticketId}/${Date.now()}_${cleanFileName}`;
+
+  // 1. Upload do arquivo físico para o bucket 'ticket-attachments'
+  const { error: uploadError } = await supabase.storage
+    .from('ticket-attachments')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+
+  if (uploadError) throw uploadError;
+
+  // 2. Obter URL pública do anexo
+  const { data: { publicUrl } } = supabase.storage
+    .from('ticket-attachments')
+    .getPublicUrl(filePath);
+
+  // 3. Gravar registro na tabela ticket_attachments
+  const { data, error: dbError } = await supabase
+    .from('ticket_attachments')
+    .insert({
+      ticket_id: ticketId,
+      uploaded_by: session.user.id,
+      file_name: file.name,
+      file_path: filePath,
+      file_size: file.size,
+      mime_type: file.type || `application/${fileExt}`
+    })
+    .select()
+    .single();
+
+  if (dbError) throw dbError;
+
+  return { ...data, publicUrl };
+}
+
+/** Busca a lista de anexos de um determinado chamado */
+export async function fetchTicketAttachments(ticketId) {
+  const { data, error } = await supabase
+    .from('ticket_attachments')
+    .select('*')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+
+  // Mapear com URLs públicas
+  return data.map(att => {
+    const { data: { publicUrl } } = supabase.storage
+      .from('ticket-attachments')
+      .getPublicUrl(att.file_path);
+    return { ...att, publicUrl };
+  });
+}
+
+/** Busca estatísticas do banco de dados (exclusivo superadmin ds.rafa@hotmail.com) */
+export async function fetchDatabaseAdminStats() {
+  const { data, error } = await supabase.rpc('get_database_admin_stats');
+  if (error) throw error;
+  return data;
+}
+
+/** Força a execução manual da rotina de limpeza de anexos expirados */
+export async function runManualAttachmentCleanup() {
+  const { data, error } = await supabase.rpc('delete_expired_ticket_attachments');
+  if (error) throw error;
+  return data;
+}
+
+
 

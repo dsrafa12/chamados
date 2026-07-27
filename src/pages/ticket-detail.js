@@ -14,7 +14,9 @@ import {
   sendTicketMessage, 
   addTicketCollaborators,
   fetchPurchaseProcessByTicket,
-  createPurchaseProcess
+  createPurchaseProcess,
+  uploadTicketAttachment,
+  fetchTicketAttachments
 } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
@@ -69,6 +71,8 @@ export async function renderTicketDetail(container, queryString) {
     return;
   }
 
+  let attachments = [];
+
   async function loadAllData() {
     try {
       ticket = await fetchTicketDetail(ticketId);
@@ -86,13 +90,14 @@ export async function renderTicketDetail(container, queryString) {
         // Se o usuário não tiver permissão para ver ou interagir, redireciona
       }
 
-      [messages, costs, allDepts, history, allProfiles, purchaseProcess] = await Promise.all([
+      [messages, costs, allDepts, history, allProfiles, purchaseProcess, attachments] = await Promise.all([
         fetchTicketMessages(ticketId),
         fetchTicketCosts(ticketId),
         fetchDepartments(),
         fetchTicketHistory(ticketId),
         fetchAllProfiles(),
-        fetchPurchaseProcessByTicket(ticketId)
+        fetchPurchaseProcessByTicket(ticketId),
+        fetchTicketAttachments(ticketId)
       ]);
     } catch (err) {
       console.error(err);
@@ -351,7 +356,18 @@ export async function renderTicketDetail(container, queryString) {
               <!-- Chat renderizado -->
             </div>
             
-            <div style="display:flex;gap:10px;align-items:flex-end;margin-top:10px;">
+            <!-- AVISO DE FORMATOS PERMITIDOS E LIMITE DE TAMANHO -->
+            <div style="font-size:0.75rem; color:var(--text-muted); background:var(--bg-app); padding:8px 12px; border-radius:8px; border:1px solid var(--border); line-height:1.35;">
+              📎 <strong>Anexos:</strong> PNG, JPG, WEBP, GIF, PDF, DOCX, XLSX, TXT (Máx: <strong>5MB</strong>). <span style="color:#d97706;">Excluídos automaticamente 4 dias após finalizado.</span>
+            </div>
+            
+            <div style="display:flex;gap:10px;align-items:flex-end;margin-top:4px;">
+              <!-- Botão de Anexo oculto com input file -->
+              <input type="file" id="attachmentFileInput" accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.docx,.xlsx,.txt" style="display:none;" />
+              <button id="attachFileBtn" style="background:var(--bg-app);color:var(--text-secondary);border:1px solid var(--border);width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.2s;" title="Anexar Arquivo (PNG, JPG, WEBP, GIF, PDF, DOCX, XLSX, TXT - Max 5MB)">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+              </button>
+
               <textarea id="chatInputMessage" class="input" placeholder="Digite uma mensagem..." rows="2" style="resize:none;font-size:0.88rem;flex:1;padding:8px 12px;border-radius:8px;background:var(--bg-card);"></textarea>
               <button id="sendChatMsgBtn" style="background:#059669;color:white;border:none;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background 0.2s;box-shadow:var(--shadow-sm);" title="Enviar Mensagem">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
@@ -561,15 +577,53 @@ export async function renderTicketDetail(container, queryString) {
   function renderMessages(messagesList) {
     const chatContainer = document.getElementById('ticketChatHistory');
     if (chatContainer) {
-      chatContainer.innerHTML = messagesList.map(m => `
-        <div style="border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--bg-app);font-size:0.88rem;color:var(--text-primary);box-shadow:var(--shadow-xs);display:flex;flex-direction:column;gap:4px;">
-          <div style="font-weight:700;font-size:0.8rem;color:var(--text-secondary);display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:2px;">
-            <span>${escapeHtml(m.sender?.full_name || 'Desconhecido')}</span>
-            <span style="color:var(--text-muted);font-weight:normal;font-size:0.75rem;">${formatDate(m.created_at)}</span>
+      chatContainer.innerHTML = messagesList.map(m => {
+        // Buscar anexos vinculados a esta mensagem (ou criados no mesmo timestamp aproximado)
+        const msgAttachments = attachments.filter(a => a.created_at && Math.abs(new Date(a.created_at) - new Date(m.created_at)) < 5000);
+
+        const attachmentsHtml = msgAttachments.map(att => {
+          if (att.is_expired) {
+            return `
+              <div style="margin-top:6px; font-size:0.78rem; color:#d97706; background:#fffbe8; border:1px solid #fef08a; padding:6px 10px; border-radius:6px; display:flex; align-items:center; gap:6px;">
+                <span>📎</span> <em>Anexo (<strong>${escapeHtml(att.file_name)}</strong>) expirado e excluído automaticamente para economizar espaço.</em>
+              </div>
+            `;
+          }
+
+          const isImage = att.mime_type?.startsWith('image/');
+          if (isImage) {
+            return `
+              <div style="margin-top:8px;">
+                <a href="${att.publicUrl}" target="_blank" title="Clique para abrir imagem cheia">
+                  <img src="${att.publicUrl}" alt="${escapeHtml(att.file_name)}" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid var(--border); object-fit:cover; display:block;" />
+                </a>
+                <span style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:2px;">📎 ${escapeHtml(att.file_name)} (${(att.file_size / (1024 * 1024)).toFixed(2)} MB)</span>
+              </div>
+            `;
+          }
+
+          return `
+            <div style="margin-top:8px;">
+              <a href="${att.publicUrl}" target="_blank" download="${escapeHtml(att.file_name)}" style="display:inline-flex; align-items:center; gap:8px; background:var(--bg-card); border:1px solid var(--border); padding:8px 12px; border-radius:8px; text-decoration:none; color:var(--primary); font-weight:600; font-size:0.82rem; box-shadow:var(--shadow-xs);">
+                <span>📄</span>
+                <span>${escapeHtml(att.file_name)}</span>
+                <span style="color:var(--text-muted); font-weight:normal; font-size:0.75rem;">(${(att.file_size / (1024 * 1024)).toFixed(2)} MB) ⬇️</span>
+              </a>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div style="border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--bg-app);font-size:0.88rem;color:var(--text-primary);box-shadow:var(--shadow-xs);display:flex;flex-direction:column;gap:4px;">
+            <div style="font-weight:700;font-size:0.8rem;color:var(--text-secondary);display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:2px;">
+              <span>${escapeHtml(m.sender?.full_name || 'Desconhecido')}</span>
+              <span style="color:var(--text-muted);font-weight:normal;font-size:0.75rem;">${formatDate(m.created_at)}</span>
+            </div>
+            <div style="white-space:pre-wrap;line-height:1.4;margin-top:2px;">${escapeHtml(m.content)}</div>
+            ${attachmentsHtml}
           </div>
-          <div style="white-space:pre-wrap;line-height:1.4;margin-top:2px;">${escapeHtml(m.content)}</div>
-        </div>
-      `).join('') || '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;margin-top:40px;">Escreva uma mensagem para iniciar o chat.</p>';
+        `;
+      }).join('') || '<p style="color:var(--text-muted);font-size:0.85rem;text-align:center;margin-top:40px;">Escreva uma mensagem para iniciar o chat.</p>';
       
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
@@ -962,6 +1016,60 @@ export async function renderTicketDetail(container, queryString) {
       } catch (err) {
         console.error(err);
         showToast('Erro ao adicionar custo', 'error');
+      }
+    });
+
+    // Chat: Anexar Arquivo
+    const attachBtn = document.getElementById('attachFileBtn');
+    const fileInput = document.getElementById('attachmentFileInput');
+
+    attachBtn?.addEventListener('click', () => {
+      fileInput?.click();
+    });
+
+    fileInput?.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // 1. Validar Tamanho Máximo (5 MB)
+      const MAX_BYTES = 5 * 1024 * 1024;
+      if (file.size > MAX_BYTES) {
+        showToast(`O arquivo excede o limite máximo de 5MB! (${(file.size / (1024 * 1024)).toFixed(2)} MB)`, 'error');
+        fileInput.value = '';
+        return;
+      }
+
+      // 2. Validar Extensões Permitidas
+      const allowedExts = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'pdf', 'docx', 'xlsx', 'txt'];
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      if (!allowedExts.includes(fileExt)) {
+        showToast(`Formato de arquivo não permitido! Permitidos: ${allowedExts.join(', ').toUpperCase()}`, 'error');
+        fileInput.value = '';
+        return;
+      }
+
+      try {
+        if (attachBtn) attachBtn.style.opacity = '0.5';
+        showToast('Enviando anexo...', 'info');
+
+        // Fazer upload do arquivo
+        await uploadTicketAttachment(ticketId, file);
+
+        // Se houver texto na mensagem, envia; caso contrário, envia legenda padrão
+        const msgText = chatInput?.value?.trim() || `📎 Enviou anexo: **${file.name}**`;
+        await sendTicketMessage(ticketId, msgText);
+
+        if (chatInput) chatInput.value = '';
+        fileInput.value = '';
+        showToast('Anexo enviado com sucesso!', 'success');
+
+        await loadAllData();
+        renderPage();
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao enviar anexo: ' + (err.message || 'Falha no upload'), 'error');
+      } finally {
+        if (attachBtn) attachBtn.style.opacity = '1';
       }
     });
 
