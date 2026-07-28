@@ -266,7 +266,7 @@ export async function renderTicketDetail(container, queryString) {
                   <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Data de Encerramento</span>
                   <strong style="color:var(--text-primary);">${ticket.status === 'resolved' && ticket.updated_at ? formatDate(ticket.updated_at) : '—'}</strong>
                 </div>
-                <div style="grid-column: span 2;">
+                <div>
                   <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Prazo de Conclusão</span>
                   <div id="deadlineDisplay" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <strong style="color:var(--text-primary);" id="deadlineText">
@@ -286,6 +286,18 @@ export async function renderTicketDetail(container, queryString) {
                       </div>
                     </div>
                   ` : ''}
+                </div>
+                <div>
+                  <span style="color:var(--text-muted);display:block;margin-bottom:2px;">Previsão de Entrega (Compra)</span>
+                  <strong style="color:var(--text-primary);">
+                    ${(() => {
+                      if (purchaseProcess && purchaseProcess.delivery_forecast) {
+                        const [year, month, day] = purchaseProcess.delivery_forecast.split('-');
+                        return `${day}/${month}/${year}`;
+                      }
+                      return '—';
+                    })()}
+                  </strong>
                 </div>
               </div>
 
