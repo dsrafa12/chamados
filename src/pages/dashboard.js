@@ -34,6 +34,7 @@ export async function renderDashboard(container) {
   let loadingTickets = true;
   let departmentsList = [];
   let authorsList = [];
+  let currentPageResolved = 1;
 
   try {
     profile = await getCurrentProfile();
@@ -388,8 +389,16 @@ export async function renderDashboard(container) {
               <option value="">Todos os Status</option>
               <option value="open" ${filters.status === 'open' ? 'selected' : ''}>Aberto</option>
               <option value="in_progress" ${filters.status === 'in_progress' ? 'selected' : ''}>Em Andamento</option>
-              <option value="resolved" ${filters.status === 'resolved' ? 'selected' : ''}>Resolvido</option>
-              <option value="overdue" ${filters.status === 'overdue' ? 'selected' : ''}>Atrasado</option>
+              <option value="awaiting_start" ${filters.status === 'awaiting_start' ? 'selected' : ''}>Gerado Processo de Compra</option>
+              <option value="in_analysis" ${filters.status === 'in_analysis' ? 'selected' : ''}>Em Análise</option>
+              <option value="awaiting_info" ${filters.status === 'awaiting_info' ? 'selected' : ''}>Aguardando Informações</option>
+              <option value="in_quotation" ${filters.status === 'in_quotation' ? 'selected' : ''}>Em Cotação</option>
+              <option value="in_approval" ${filters.status === 'in_approval' ? 'selected' : ''}>Em Aprovação</option>
+              <option value="order_issued" ${filters.status === 'order_issued' ? 'selected' : ''}>Pedido Emitido</option>
+              <option value="awaiting_supplier" ${filters.status === 'awaiting_supplier' ? 'selected' : ''}>Aguardando Fornecedor</option>
+              <option value="awaiting_receipt" ${filters.status === 'awaiting_receipt' ? 'selected' : ''}>Aguardando Recebimento</option>
+              <option value="received_partial" ${filters.status === 'received_partial' ? 'selected' : ''}>Recebido Parcial</option>
+              <option value="reopened" ${filters.status === 'reopened' ? 'selected' : ''}>Reaberto</option>
             </select>
 
             <select class="select" id="filterAuthor" style="min-width:180px">
@@ -449,6 +458,13 @@ export async function renderDashboard(container) {
       });
     }
 
+    // Ordenação garantida no front-end
+    if (filters.view === 'resolved') {
+      displayTickets.sort((a, b) => new Date(b.resolved_at || b.updated_at) - new Date(a.resolved_at || a.updated_at));
+    } else {
+      displayTickets.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    }
+
     if (displayTickets.length === 0) {
       return `
         <div class="empty-state">
@@ -461,7 +477,49 @@ export async function renderDashboard(container) {
       `;
     }
 
+    const isResolvedView = filters.view === 'resolved';
+    const totalItems = displayTickets.length;
+    const itemsPerPage = 10;
+    const totalPages = isResolvedView ? Math.ceil(totalItems / itemsPerPage) : 1;
+    
+    // Garantir que a página atual seja válida
+    if (currentPageResolved > totalPages) currentPageResolved = totalPages || 1;
+    if (currentPageResolved < 1) currentPageResolved = 1;
+
+    // Fatiar para fatias de 10 em 10 apenas no filtro Finalizados
+    const paginatedTickets = isResolvedView 
+      ? displayTickets.slice((currentPageResolved - 1) * itemsPerPage, currentPageResolved * itemsPerPage)
+      : displayTickets;
+
+    const sortingNotice = isResolvedView
+      ? `ℹ️ <strong>Ordenação:</strong> Exibindo chamados ordenados pela <strong>data em que foram encerrados</strong> (o mais recente primeiro).`
+      : `ℹ️ <strong>Ordenação:</strong> Exibindo chamados em aberto ordenados pelo <strong>mais antigo primeiro</strong>.`;
+
+    const paginationControls = isResolvedView && totalPages > 1 ? `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding:12px 16px; background:var(--bg-card); border-radius:12px; border:1px solid var(--border); flex-wrap:wrap; gap:12px;">
+        <span style="font-size:0.85rem; color:var(--text-secondary);">
+          Exibindo <strong>${(currentPageResolved - 1) * itemsPerPage + 1}</strong> a <strong>${Math.min(currentPageResolved * itemsPerPage, totalItems)}</strong> de <strong>${totalItems}</strong> finalizados
+        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button id="prevPageBtn" class="btn btn-sm btn-secondary" ${currentPageResolved === 1 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+            ◀️ Anterior
+          </button>
+          <span style="font-size:0.88rem; font-weight:700; color:var(--text-primary); padding:0 8px;">
+            Página ${currentPageResolved} de ${totalPages}
+          </span>
+          <button id="nextPageBtn" class="btn btn-sm btn-secondary" ${currentPageResolved === totalPages ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+            Próximo ▶️
+          </button>
+        </div>
+      </div>
+    ` : '';
+
     return `
+      <!-- AVISO EXPLÍCITO DE ORDENAÇÃO NA TELA -->
+      <div style="font-size:0.82rem; color:var(--text-secondary); background:var(--bg-card); padding:10px 14px; border-radius:10px; border:1px solid var(--border); margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+        ${sortingNotice}
+      </div>
+
       <div class="tickets-table-container">
         <table class="tickets-table">
           <thead>
@@ -475,10 +533,11 @@ export async function renderDashboard(container) {
             </tr>
           </thead>
           <tbody>
-            ${displayTickets.map(t => renderTableRow(t)).join('')}
+            ${paginatedTickets.map(t => renderTableRow(t)).join('')}
           </tbody>
         </table>
       </div>
+      ${paginationControls}
     `;
   }
 
@@ -580,14 +639,38 @@ export async function renderDashboard(container) {
       loadTickets();
     });
 
+    // Eventos de Paginação e Clique nos Cards da Tabela
+    function bindTableEvents() {
+      const listContainer = document.getElementById('ticketsList');
+      if (!listContainer) return;
+
+      listContainer.querySelectorAll('[data-ticket-id]').forEach(card => {
+        card.addEventListener('click', () => navigateTo('/ticket?id=' + card.dataset.ticketId));
+      });
+
+      document.getElementById('prevPageBtn')?.addEventListener('click', () => {
+        if (currentPageResolved > 1) {
+          currentPageResolved--;
+          listContainer.innerHTML = renderTicketsList();
+          bindTableEvents();
+        }
+      });
+
+      document.getElementById('nextPageBtn')?.addEventListener('click', () => {
+        currentPageResolved++;
+        listContainer.innerHTML = renderTicketsList();
+        bindTableEvents();
+      });
+    }
+
+    bindTableEvents();
+
     document.getElementById('filterAuthor')?.addEventListener('change', (e) => {
       filters.authorId = e.target.value;
       const listContainer = document.getElementById('ticketsList');
       if (listContainer) {
         listContainer.innerHTML = renderTicketsList();
-        listContainer.querySelectorAll('[data-ticket-id]').forEach(card => {
-          card.addEventListener('click', () => navigateTo('/ticket?id=' + card.dataset.ticketId));
-        });
+        bindTableEvents();
       }
     });
 
@@ -596,9 +679,7 @@ export async function renderDashboard(container) {
       const listContainer = document.getElementById('ticketsList');
       if (listContainer) {
         listContainer.innerHTML = renderTicketsList();
-        listContainer.querySelectorAll('[data-ticket-id]').forEach(card => {
-          card.addEventListener('click', () => navigateTo('/ticket?id=' + card.dataset.ticketId));
-        });
+        bindTableEvents();
       }
     });
 
@@ -612,11 +693,6 @@ export async function renderDashboard(container) {
         filters.view = chip.dataset.view;
         loadTickets();
       });
-    });
-
-    // Clique no card do ticket
-    document.querySelectorAll('[data-ticket-id]').forEach(card => {
-      card.addEventListener('click', () => navigateTo('/ticket?id=' + card.dataset.ticketId));
     });
 
     // Setup department

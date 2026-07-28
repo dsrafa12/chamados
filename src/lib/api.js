@@ -51,17 +51,6 @@ export async function deleteDepartment(id) {
  * @param {string} [filters.myUserId] - ID do usuário logado
  */
 export async function fetchTickets(filters = {}) {
-  // 1. Antes de listar, atualiza no banco todos os chamados que passaram do prazo e não estão resolvidos
-  try {
-    await supabase
-      .from('tickets')
-      .update({ status: 'overdue' })
-      .lt('deadline', new Date().toISOString())
-      .eq('status', 'open');
-  } catch (err) {
-    console.error('Erro ao atualizar chamados vencidos:', err);
-  }
-
   let query = supabase
     .from('tickets')
     .select(`
@@ -71,14 +60,12 @@ export async function fetchTickets(filters = {}) {
       creator:profiles!created_by(id, full_name, department:departments!profiles_department_id_fkey(name)),
       ticket_users(profile:profiles(id, full_name))
     `)
-    .order('created_at', { ascending: true });
-
   if (filters.view === 'resolved') {
-    query = query.eq('status', 'resolved');
+    query = query.eq('status', 'resolved').order('created_at', { ascending: false });
   } else if (filters.status) {
-    query = query.eq('status', filters.status);
+    query = query.eq('status', filters.status).order('created_at', { ascending: true });
   } else {
-    query = query.neq('status', 'resolved');
+    query = query.neq('status', 'resolved').order('created_at', { ascending: true });
   }
 
   if (filters.priority) {
