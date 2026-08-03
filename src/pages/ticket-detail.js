@@ -180,8 +180,8 @@ export async function renderTicketDetail(container, queryString) {
               <button class="btn btn-sm" id="btnCollaborators" style="background:#6366f1;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Colaboradores</button>
             ` : ''}
             
-            ${showStandardButtons && !isFinalized ? `
-              ${(ticket.status === 'open' || ticket.status === 'overdue') ? `
+            ${canChangeStatus && !isFinalized ? `
+              ${showStandardButtons && (ticket.status === 'open' || ticket.status === 'overdue') ? `
                 <button class="btn btn-sm" id="btnStartService" style="background:#3b82f6;color:white;font-weight:600;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;">Iniciar Atendimento</button>
               ` : ''}
               ${(ticket.status !== 'resolved' && ticket.status !== 'finalized' && ticket.status !== 'cancelled') ? `
