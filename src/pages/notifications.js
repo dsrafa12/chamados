@@ -69,12 +69,16 @@ export async function renderNotifications(container) {
     </main>
   `;
 
+  let currentPage = 1;
+  const itemsPerPage = 10;
+
   async function loadData() {
     const listContainer = document.getElementById('notificationsContainer');
     if (!listContainer) return;
 
     try {
       notificationsList = await fetchNotifications(currentFilter === 'unread');
+      currentPage = 1;
       renderList();
     } catch (err) {
       console.error(err);
@@ -101,7 +105,18 @@ export async function renderNotifications(container) {
       return;
     }
 
-    listContainer.innerHTML = notificationsList.map(n => {
+    const totalItems = notificationsList.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    if (currentPage > totalPages) currentPage = totalPages || 1;
+    if (currentPage < 1) currentPage = 1;
+
+    const paginatedNotifications = notificationsList.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+
+    const itemsHtml = paginatedNotifications.map(n => {
       const isUnread = !n.is_read;
       const createdDate = new Date(n.created_at).toLocaleString('pt-BR');
       const ticketNumber = n.ticket?.ticket_number || '';
@@ -173,6 +188,27 @@ export async function renderNotifications(container) {
       `;
     }).join('');
 
+    const paginationControls = totalPages > 1 ? `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding:12px 16px; background:var(--bg-card); border-radius:12px; border:1px solid var(--border); flex-wrap:wrap; gap:12px;">
+        <span style="font-size:0.85rem; color:var(--text-secondary);">
+          Exibindo <strong>${(currentPage - 1) * itemsPerPage + 1}</strong> a <strong>${Math.min(currentPage * itemsPerPage, totalItems)}</strong> de <strong>${totalItems}</strong> alertas
+        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button id="notifPrevPageBtn" class="btn btn-sm btn-secondary" ${currentPage === 1 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+            ◀️ Anterior
+          </button>
+          <span style="font-size:0.88rem; font-weight:700; color:var(--text-primary); padding:0 8px;">
+            Página ${currentPage} de ${totalPages}
+          </span>
+          <button id="notifNextPageBtn" class="btn btn-sm btn-secondary" ${currentPage === totalPages ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+            Próximo ▶️
+          </button>
+        </div>
+      </div>
+    ` : '';
+
+    listContainer.innerHTML = itemsHtml + paginationControls;
+
     // Registrar clique na notificação para marcar como lida e navegar para o chamado
     document.querySelectorAll('.notification-item').forEach(el => {
       el.addEventListener('click', async () => {
@@ -187,6 +223,21 @@ export async function renderNotifications(container) {
 
         navigateTo(`/ticket?id=${ticketId}`);
       });
+    });
+
+    // Eventos dos botões de paginação
+    document.getElementById('notifPrevPageBtn')?.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderList();
+      }
+    });
+
+    document.getElementById('notifNextPageBtn')?.addEventListener('click', () => {
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderList();
+      }
     });
   }
 
