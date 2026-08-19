@@ -379,6 +379,8 @@ export async function fetchPurchaseProcesses() {
         description,
         priority,
         deadline,
+        created_at,
+        status,
         created_by,
         destination_department_id,
         creator:profiles!created_by(full_name),
@@ -389,6 +391,41 @@ export async function fetchPurchaseProcesses() {
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
+}
+
+/** Busca dados completos de relatórios para o setor de Compras */
+export async function fetchComprasReportData() {
+  try {
+    const { data: depts } = await supabase
+      .from('departments')
+      .select('id')
+      .ilike('name', 'compras')
+      .maybeSingle();
+
+    const comprasDeptId = depts?.id;
+    if (!comprasDeptId) return [];
+
+    const { data: tickets, error: ticketsErr } = await supabase
+      .from('tickets')
+      .select(`
+        *,
+        creator:profiles!created_by(full_name),
+        origin:departments!origin_department_id(name),
+        destination:departments!destination_department_id(name),
+        purchase_process:purchase_processes(*)
+      `)
+      .eq('destination_department_id', comprasDeptId)
+      .order('created_at', { ascending: false });
+
+    if (ticketsErr) {
+      console.warn('Erro ao carregar dados do relatório de compras:', ticketsErr);
+      return [];
+    }
+    return tickets || [];
+  } catch (err) {
+    console.warn('Falha no carregamento do relatório de compras:', err);
+    return [];
+  }
 }
 
 /** Busca processo de compra associado a um chamado */

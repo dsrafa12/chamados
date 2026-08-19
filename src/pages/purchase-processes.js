@@ -12,7 +12,8 @@ import {
   uploadTicketAttachment,
   fetchTicketAttachments,
   createNotification,
-  removeComprasCollaborators
+  removeComprasCollaborators,
+  fetchComprasReportData
 } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
@@ -40,6 +41,9 @@ export async function renderPurchaseProcesses(container, queryString) {
   let selectedProcess = null;
   let allProfiles = [];
   let currentView = 'kanban';
+  let reportTickets = [];
+  let reportStartDate = '';
+  let reportEndDate = '';
   
   const params = new URLSearchParams(queryString || '');
   const targetTicketId = params.get('ticketId');
@@ -65,12 +69,14 @@ export async function renderPurchaseProcesses(container, queryString) {
 
   async function loadData() {
     try {
-      const [procData, profData] = await Promise.all([
+      const [procData, profData, repTickets] = await Promise.all([
         fetchPurchaseProcesses(),
-        fetchAllProfiles()
+        fetchAllProfiles(),
+        fetchComprasReportData()
       ]);
       processes = procData;
       allProfiles = profData;
+      reportTickets = repTickets;
       filterAndRender();
 
       // Se veio com um ticketId específico na URL, abre automaticamente o detalhe/modal desse processo
@@ -104,8 +110,16 @@ export async function renderPurchaseProcesses(container, queryString) {
 
     if (currentView === 'kanban') {
       renderKanban();
-    } else {
+    } else if (currentView === 'list') {
       renderList();
+    } else if (currentView === 'report') {
+      renderReport();
+    }
+
+    // Ocultar a barra de busca/filtros na visualização de relatório
+    const filtersCard = document.getElementById('filtersCardContainer');
+    if (filtersCard) {
+      filtersCard.style.display = currentView === 'report' ? 'none' : 'flex';
     }
   }
 
@@ -120,10 +134,15 @@ export async function renderPurchaseProcesses(container, queryString) {
             <h1 style="margin:0; font-size:1.8rem; font-weight:700; color:var(--text-primary);">Processos de Compra</h1>
             <p style="margin:4px 0 0 0; font-size:0.9rem; color:var(--text-muted);">Gerenciamento de fluxos de compras e suprimentos integrados aos chamados</p>
           </div>
+          <div>
+            <button id="viewReportBtn" class="btn" style="padding:10px 20px; font-weight:600; cursor:pointer; background:${currentView === 'report' ? 'var(--primary)' : 'var(--bg-card)'}; color:${currentView === 'report' ? 'white' : 'var(--text-primary)'}; border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-sm); display:flex; align-items:center; gap:8px; transition:all 0.2s;">
+              📊 Relatório de Compras
+            </button>
+          </div>
         </div>
 
         <!-- FILTROS -->
-        <div class="card" style="padding:16px; margin-bottom:24px; display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+        <div id="filtersCardContainer" class="card" style="padding:16px; margin-bottom:24px; display:${currentView === 'report' ? 'none' : 'flex'}; gap:16px; align-items:center; flex-wrap:wrap;">
           <div style="flex:1; min-width:260px; position:relative;">
             <input type="text" id="searchProcessInput" class="input" placeholder="Buscar por Nº, título ou autor..." style="padding-left:36px; font-size:0.9rem;" />
             <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted);">🔍</span>
@@ -406,6 +425,318 @@ export async function renderPurchaseProcesses(container, queryString) {
     `;
   }
 
+  function renderReport() {
+    const viewContainer = document.getElementById('viewContainer');
+    if (!viewContainer) return;
+
+    // Filtrar chamados pela faixa de data de abertura (se preenchida)
+    const filteredReportTickets = reportTickets.filter(t => {
+      if (!t.created_at) return true;
+      const createdDate = new Date(t.created_at);
+
+      if (reportStartDate) {
+        const start = new Date(reportStartDate + 'T00:00:00');
+        if (createdDate < start) return false;
+      }
+
+      if (reportEndDate) {
+        const end = new Date(reportEndDate + 'T23:59:59');
+        if (createdDate > end) return false;
+      }
+
+      return true;
+    });
+
+    // 1. Totalizadores de chamados e processos
+    const totalDirectedToCompras = filteredReportTickets.length;
+    const totalWithPurchaseProcess = filteredReportTickets.filter(t => t.purchase_process || t.purchase_process?.id).length;
+    const totalWithoutPurchaseProcess = totalDirectedToCompras - totalWithPurchaseProcess;
+    
+    // Taxa de conversão em processo de compra
+    const conversionRate = totalDirectedToCompras > 0 ? Math.round((totalWithPurchaseProcess / totalDirectedToCompras) * 100) : 0;
+
+    // Total acumulado em R$ de compras
+    let totalPurchaseAmount = 0;
+    filteredReportTickets.forEach(t => {
+      const p = Array.isArray(t.purchase_process) ? t.purchase_process[0] : t.purchase_process;
+      if (p && p.purchase_amount) {
+        totalPurchaseAmount += parseFloat(p.purchase_amount) || 0;
+      }
+    });
+
+    // 2. Cálculo do tempo médio (Abertura vs Prazo de Conclusão) - ignora chamados sem prazo definido
+    let totalDiffMs = 0;
+    let validDeadlineCount = 0;
+
+    filteredReportTickets.forEach(t => {
+      if (t.created_at && t.deadline) {
+        const createdMs = new Date(t.created_at).getTime();
+        const deadlineMs = new Date(t.deadline).getTime();
+        if (deadlineMs > createdMs) {
+          totalDiffMs += (deadlineMs - createdMs);
+          validDeadlineCount++;
+        }
+      }
+    });
+
+    let avgTimeText = 'Sem prazos';
+    if (validDeadlineCount > 0) {
+      const avgMs = totalDiffMs / validDeadlineCount;
+      const avgHours = Math.floor(avgMs / (1000 * 60 * 60));
+      const avgDays = Math.floor(avgHours / 24);
+      const remainingHours = avgHours % 24;
+
+      if (avgDays > 0) {
+        avgTimeText = `${avgDays}d ${remainingHours}h`;
+      } else {
+        avgTimeText = `${avgHours}h`;
+      }
+    }
+
+    // 3. Montagem das linhas da tabela analítica do relatório
+    const tableRowsHtml = filteredReportTickets.map(t => {
+      const p = Array.isArray(t.purchase_process) ? t.purchase_process[0] : t.purchase_process;
+      
+      const createdFormatted = t.created_at ? new Date(t.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+      const deadlineFormatted = t.deadline ? new Date(t.deadline).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Sem prazo';
+      
+      let amountFormatted = '—';
+      if (p && p.purchase_amount !== null && p.purchase_amount !== undefined) {
+        amountFormatted = 'R$ ' + parseFloat(p.purchase_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      let forecastFormatted = '—';
+      if (p && p.delivery_forecast) {
+        const [y, m, d] = p.delivery_forecast.split('-');
+        forecastFormatted = `${d}/${m}/${y}`;
+      }
+
+      const statusText = STATUS_LABELS[p?.status] || p?.status || 'Ativo';
+      const processBadge = p ? `
+        <span style="background:#e0f2fe; color:#0369a1; padding:4px 10px; border-radius:12px; font-size:0.78rem; font-weight:600;">
+          🛒 Sim (${statusText})
+        </span>
+      ` : `
+        <span style="background:#f1f5f9; color:#64748b; padding:4px 10px; border-radius:12px; font-size:0.78rem; font-weight:600;">
+          Não gerado
+        </span>
+      `;
+
+      return `
+        <tr style="border-bottom:1px solid var(--border); transition:background 0.2s;" class="clickable-row" data-id="${p ? p.id : ''}" data-ticket-id="${t.id}">
+          <td style="padding:14px 16px;">
+            <strong style="color:var(--primary); font-size:0.88rem;">Nº ${t.ticket_number || ''}</strong>
+            <div style="font-size:0.82rem; color:var(--text-secondary); max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              ${escapeHtml(t.title || '')}
+            </div>
+          </td>
+          <td style="padding:14px 16px; font-size:0.85rem; color:var(--text-primary);">
+            ${createdFormatted}
+          </td>
+          <td style="padding:14px 16px; font-size:0.85rem; color:var(--text-primary);">
+            ${deadlineFormatted}
+          </td>
+          <td style="padding:14px 16px; font-size:0.85rem; color:var(--text-secondary);">
+            ${escapeHtml(t.creator?.full_name || '—')}
+          </td>
+          <td style="padding:14px 16px; font-size:0.85rem; text-align:center;">
+            ${processBadge}
+          </td>
+          <td style="padding:14px 16px; font-size:0.88rem; font-weight:600; color:#059669; text-align:right;">
+            ${amountFormatted}
+          </td>
+          <td style="padding:14px 16px; font-size:0.85rem; text-align:center; color:var(--text-primary);">
+            ${forecastFormatted}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    viewContainer.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:24px;">
+        
+        <!-- BARRA DE FILTRO POR DATA DE ABERTURA -->
+        <div class="card" style="padding:16px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; background:var(--bg-card);">
+          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <span style="font-weight:700; font-size:0.9rem; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+              📅 Filtro por Data de Abertura:
+            </span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-size:0.82rem; color:var(--text-secondary); font-weight:600;">Início:</label>
+              <input type="date" id="reportStartDateInput" class="input" value="${reportStartDate}" style="padding:6px 12px; font-size:0.85rem; width:150px;" />
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-size:0.82rem; color:var(--text-secondary); font-weight:600;">Fim:</label>
+              <input type="date" id="reportEndDateInput" class="input" value="${reportEndDate}" style="padding:6px 12px; font-size:0.85rem; width:150px;" />
+            </div>
+            ${(reportStartDate || reportEndDate) ? `
+              <button id="clearDateFilterBtn" class="btn btn-sm" style="background:#fee2e2; color:#991b1b; border:none; padding:6px 12px; font-weight:600; cursor:pointer; border-radius:6px;">
+                ✖ Limpar Filtro
+              </button>
+            ` : ''}
+          </div>
+          <span style="font-size:0.82rem; font-weight:600; color:var(--text-muted);">
+            Exibindo ${filteredReportTickets.length} de ${reportTickets.length} chamados
+          </span>
+        </div>
+
+        <!-- CARDS DE METRICAS PRINCIPAIS -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
+          
+          <div class="card" style="padding:20px; display:flex; flex-direction:column; gap:8px; border-left:4px solid #3b82f6;">
+            <span style="font-size:0.82rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Chamados em Compras</span>
+            <div style="font-size:1.8rem; font-weight:800; color:var(--text-primary);">${totalDirectedToCompras}</div>
+            <span style="font-size:0.78rem; color:var(--text-secondary);">Direcionados ao setor</span>
+          </div>
+
+          <div class="card" style="padding:20px; display:flex; flex-direction:column; gap:8px; border-left:4px solid #0f766e;">
+            <span style="font-size:0.82rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Processos Criados</span>
+            <div style="font-size:1.8rem; font-weight:800; color:#0f766e;">${totalWithPurchaseProcess} <span style="font-size:0.9rem; font-weight:600; color:var(--text-muted);">(${conversionRate}%)</span></div>
+            <span style="font-size:0.78rem; color:var(--text-secondary);">${totalWithoutPurchaseProcess} pendentes de criação</span>
+          </div>
+
+          <div class="card" style="padding:20px; display:flex; flex-direction:column; gap:8px; border-left:4px solid #8b5cf6;">
+            <span style="font-size:0.82rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Tempo Médio de Prazo</span>
+            <div style="font-size:1.8rem; font-weight:800; color:#8b5cf6;">${avgTimeText}</div>
+            <span style="font-size:0.78rem; color:var(--text-secondary);">${validDeadlineCount} chamados com prazo definido</span>
+          </div>
+
+          <div class="card" style="padding:20px; display:flex; flex-direction:column; gap:8px; border-left:4px solid #10b981;">
+            <span style="font-size:0.82rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Total Investido</span>
+            <div style="font-size:1.6rem; font-weight:800; color:#10b981;">R$ ${totalPurchaseAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <span style="font-size:0.78rem; color:var(--text-secondary);">Soma dos valores lançados</span>
+          </div>
+
+        </div>
+
+        <!-- PAINEL DE GRÁFICOS VISUAIS -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;" class="report-charts-grid">
+          
+          <!-- GRÁFICO 1: CONVERSÃO DE CHAMADOS X PROCESSOS DE COMPRA -->
+          <div class="card" style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h4 style="margin:0; font-size:0.95rem; font-weight:700; color:var(--text-primary);">Conversão de Chamados em Compras</h4>
+              <span style="font-size:0.8rem; font-weight:600; color:var(--primary);">${conversionRate}% Convertidos</span>
+            </div>
+            
+            <div style="display:flex; align-items:center; gap:24px; justify-content:center; padding:10px 0;">
+              <!-- Gráfico de Donut SVG -->
+              <div style="position:relative; width:130px; height:130px; flex-shrink:0;">
+                <svg width="130" height="130" viewBox="0 0 36 36" style="transform:rotate(-90deg);">
+                  <path stroke="#f1f5f9" stroke-width="3.8" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path stroke="#0f766e" stroke-dasharray="${conversionRate}, 100" stroke-width="3.8" stroke-linecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                </svg>
+                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;">
+                  <strong style="font-size:1.1rem; color:var(--text-primary); display:block;">${totalWithPurchaseProcess} / ${totalDirectedToCompras}</strong>
+                  <span style="font-size:0.7rem; color:var(--text-muted);">Processos</span>
+                </div>
+              </div>
+
+              <!-- Legenda do Gráfico 1 -->
+              <div style="display:flex; flex-direction:column; gap:10px; font-size:0.85rem;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="width:12px; height:12px; border-radius:50%; background:#0f766e; display:inline-block;"></span>
+                  <span style="color:var(--text-secondary);">Com Processo de Compra (<strong>${totalWithPurchaseProcess}</strong>)</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="width:12px; height:12px; border-radius:50%; background:#e2e8f0; display:inline-block;"></span>
+                  <span style="color:var(--text-secondary);">Apenas no Setor Compras (<strong>${totalWithoutPurchaseProcess}</strong>)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- GRÁFICO 2: DISTRIBUIÇÃO POR STATUS DO PROCESSO -->
+          <div class="card" style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+            <h4 style="margin:0; font-size:0.95rem; font-weight:700; color:var(--text-primary);">Distribuição por Status dos Processos</h4>
+            
+            <div style="display:flex; flex-direction:column; gap:10px; justify-content:center; flex:1;">
+              ${(() => {
+                const statusCounts = {};
+                filteredReportTickets.forEach(t => {
+                  const p = Array.isArray(t.purchase_process) ? t.purchase_process[0] : t.purchase_process;
+                  const st = p ? (p.status || 'awaiting_start') : 'sem_processo';
+                  statusCounts[st] = (statusCounts[st] || 0) + 1;
+                });
+
+                const statusColorMap = {
+                  awaiting_start: '#0f766e',
+                  in_analysis: '#3b82f6',
+                  in_quotation: '#0284c7',
+                  order_issued: '#16a34a',
+                  awaiting_receipt: '#0891b2',
+                  finalized: '#10b981',
+                  sem_processo: '#94a3b8'
+                };
+
+                const statusLabelMap = {
+                  awaiting_start: 'Gerado Processo',
+                  in_analysis: 'Em Análise',
+                  in_quotation: 'Em Cotação',
+                  order_issued: 'Pedido Emitido',
+                  awaiting_receipt: 'Aguardando Recebimento',
+                  finalized: 'Finalizado',
+                  sem_processo: 'Sem Processo Criado'
+                };
+
+                return Object.entries(statusCounts).map(([stKey, count]) => {
+                  const pct = totalDirectedToCompras > 0 ? Math.round((count / totalDirectedToCompras) * 100) : 0;
+                  const color = statusColorMap[stKey] || '#6366f1';
+                  const label = statusLabelMap[stKey] || STATUS_LABELS[stKey] || stKey;
+
+                  return `
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                      <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
+                        <span style="color:var(--text-secondary); font-weight:600;">${label}</span>
+                        <span style="color:var(--text-primary); font-weight:700;">${count} (${pct}%)</span>
+                      </div>
+                      <div style="width:100%; height:8px; background:var(--bg-app); border-radius:4px; overflow:hidden;">
+                        <div style="width:${pct}%; height:100%; background:${color}; border-radius:4px; transition:width 0.4s ease;"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('');
+              })()}
+            </div>
+          </div>
+
+        </div>
+
+        <!-- TABELA DETALHADA DO RELATÓRIO -->
+        <div class="card" style="padding:0; overflow:hidden;">
+          <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);">Relatório Analítico de Chamados e Compras</h3>
+            <span style="font-size:0.82rem; color:var(--text-muted);">${reportTickets.length} registros no total</span>
+          </div>
+
+          <div style="overflow-x:auto;">
+            <table class="tickets-table" style="width:100%; border-collapse:collapse; text-align:left;">
+              <thead>
+                <tr style="background:var(--bg-app); border-bottom:1px solid var(--border);">
+                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary);">Chamado / Título</th>
+                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary);">Data / Hora Abertura</th>
+                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary);">Prazo de Conclusão</th>
+                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary);">Autor</th>
+                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); text-align:center;">Processo Gerado?</th>
+                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); text-align:right;">Valor da Compra</th>
+                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); text-align:center;">Previsão Entrega</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRowsHtml.length > 0 ? tableRowsHtml : `
+                  <tr>
+                    <td colspan="7" style="padding:32px; text-align:center; color:var(--text-muted);">Nenhum chamado registrado para o setor de compras.</td>
+                  </tr>
+                `}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    `;
+  }
+
   function bindPageEvents() {
     document.getElementById('searchProcessInput')?.addEventListener('input', filterAndRender);
     document.getElementById('filterProcessStatus')?.addEventListener('change', filterAndRender);
@@ -413,37 +744,51 @@ export async function renderPurchaseProcesses(container, queryString) {
     // Seletores de Visualização
     const kanbanBtn = document.getElementById('viewKanbanBtn');
     const listBtn = document.getElementById('viewListBtn');
+    const reportBtn = document.getElementById('viewReportBtn');
+
+    const updateTabStyles = (activeView) => {
+      if (kanbanBtn) {
+        kanbanBtn.style.background = activeView === 'kanban' ? 'var(--primary)' : 'transparent';
+        kanbanBtn.style.color = activeView === 'kanban' ? 'white' : 'var(--text-secondary)';
+      }
+      if (listBtn) {
+        listBtn.style.background = activeView === 'list' ? 'var(--primary)' : 'transparent';
+        listBtn.style.color = activeView === 'list' ? 'white' : 'var(--text-secondary)';
+      }
+      if (reportBtn) {
+        reportBtn.style.background = activeView === 'report' ? 'var(--primary)' : 'transparent';
+        reportBtn.style.color = activeView === 'report' ? 'white' : 'var(--text-secondary)';
+      }
+    };
 
     kanbanBtn?.addEventListener('click', () => {
       currentView = 'kanban';
-      if (kanbanBtn) {
-        kanbanBtn.style.background = 'var(--primary)';
-        kanbanBtn.style.color = 'white';
-      }
-      if (listBtn) {
-        listBtn.style.background = 'transparent';
-        listBtn.style.color = 'var(--text-secondary)';
-      }
+      updateTabStyles('kanban');
       filterAndRender();
     });
 
     listBtn?.addEventListener('click', () => {
       currentView = 'list';
-      if (listBtn) {
-        listBtn.style.background = 'var(--primary)';
-        listBtn.style.color = 'white';
-      }
-      if (kanbanBtn) {
-        kanbanBtn.style.background = 'transparent';
-        kanbanBtn.style.color = 'var(--text-secondary)';
-      }
+      updateTabStyles('list');
+      filterAndRender();
+    });
+
+    reportBtn?.addEventListener('click', () => {
+      currentView = 'report';
+      updateTabStyles('report');
       filterAndRender();
     });
 
     const viewContainer = document.getElementById('viewContainer');
 
-    // Delegar cliques nos cards/linhas para abrir o modal de detalhes
+    // Delegar cliques nos cards/linhas para abrir o modal de detalhes + manipular filtros de data do relatório
     viewContainer?.addEventListener('click', (e) => {
+      if (e.target.id === 'clearDateFilterBtn') {
+        reportStartDate = '';
+        reportEndDate = '';
+        renderReport();
+        return;
+      }
       const card = e.target.closest('.kanban-card');
       if (card) {
         const processId = card.getAttribute('data-id');
@@ -456,6 +801,16 @@ export async function renderPurchaseProcesses(container, queryString) {
         const processId = row.getAttribute('data-id');
         const found = processes.find(p => p.id === processId);
         if (found) openStatusModal(found);
+      }
+    });
+
+    viewContainer?.addEventListener('change', (e) => {
+      if (e.target.id === 'reportStartDateInput') {
+        reportStartDate = e.target.value;
+        renderReport();
+      } else if (e.target.id === 'reportEndDateInput') {
+        reportEndDate = e.target.value;
+        renderReport();
       }
     });
 
