@@ -152,6 +152,7 @@ export async function renderNotifications(container) {
         .replace(/\*\*awaiting_supplier\*\*/g, '**Aguardando Fornecedor**')
         .replace(/\*\*awaiting_receipt\*\*/g, '**Aguardando Recebimento**')
         .replace(/\*\*received_partial\*\*/g, '**Recebido Parcial**')
+        .replace(/\*\*purchase_received\*\*/g, '**Compra Recebida**')
         .replace(/\*\*resolved\*\*/g, '**Resolvido**')
         .replace(/\*\*finalized\*\*/g, '**Finalizado**')
         .replace(/\*\*cancelled\*\*/g, '**Cancelado**')

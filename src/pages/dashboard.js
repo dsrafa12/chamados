@@ -22,6 +22,7 @@ const STATUS_LABELS = {
   awaiting_supplier: 'Aguardando Fornecedor',
   awaiting_receipt: 'Aguardando Recebimento',
   received_partial: 'Recebido Parcial',
+  purchase_received: 'Compra Recebida',
   finalized: 'Finalizado',
   cancelled: 'Cancelado',
   reopened: 'Reaberto'
@@ -596,6 +597,9 @@ export async function renderDashboard(container) {
     } else if (statusClass === 'received_partial') {
       badgeStyle = `min-width:125px; padding:4px 8px; font-size:0.72rem; display:inline-block; white-space:normal; line-height:1.15;`;
       labelHtml = `Recebido<br>Parcial`;
+    } else if (statusClass === 'purchase_received') {
+      badgeStyle = `min-width:125px; padding:4px 8px; font-size:0.72rem; display:inline-block; white-space:normal; line-height:1.15;`;
+      labelHtml = `Compra<br>Recebida`;
     }
 
     return `

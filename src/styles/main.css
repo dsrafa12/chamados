@@ -337,6 +337,11 @@ h3 { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
   color: #d97706;
   border: 1px solid #fde68a;
 }
+.badge-purchase_received {
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
 .badge-finalized {
   background: #dcfce7;
   color: #15803d;

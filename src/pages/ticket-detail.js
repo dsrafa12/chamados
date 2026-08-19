@@ -37,6 +37,7 @@ const STATUS_LABELS = {
   awaiting_supplier: 'Aguardando Fornecedor',
   awaiting_receipt: 'Aguardando Recebimento',
   received_partial: 'Recebido Parcial',
+  purchase_received: 'Compra Recebida',
   finalized: 'Finalizado',
   cancelled: 'Cancelado',
   reopened: 'Reaberto'
@@ -148,7 +149,7 @@ export async function renderTicketDetail(container, queryString) {
     if (statusClass === 'in_progress_overdue') {
       detailBadgeStyle = 'font-size:0.72rem; line-height:1.15; padding:4px 8px; white-space:normal; text-align:center; display:inline-block; max-width:125px;';
       detailLabelHtml = `Em Atendimento<br>(Atrasado)`;
-    } else if (statusClass === 'awaiting_start' || statusClass === 'in_analysis' || statusClass === 'awaiting_info' || statusClass === 'in_quotation' || statusClass === 'in_approval' || statusClass === 'order_issued' || statusClass === 'awaiting_supplier' || statusClass === 'awaiting_receipt' || statusClass === 'received_partial' || statusClass === 'finalized' || statusClass === 'cancelled' || statusClass === 'reopened') {
+    } else if (statusClass === 'awaiting_start' || statusClass === 'in_analysis' || statusClass === 'awaiting_info' || statusClass === 'in_quotation' || statusClass === 'in_approval' || statusClass === 'order_issued' || statusClass === 'awaiting_supplier' || statusClass === 'awaiting_receipt' || statusClass === 'received_partial' || statusClass === 'purchase_received' || statusClass === 'finalized' || statusClass === 'cancelled' || statusClass === 'reopened') {
       detailBadgeStyle = 'font-size:0.72rem; line-height:1.15; padding:4px 8px; white-space:normal; text-align:center; display:inline-block; max-width:125px;';
       if (statusClass === 'awaiting_start') {
         detailLabelHtml = `Gerado Processo<br>de Compra`;
@@ -160,6 +161,8 @@ export async function renderTicketDetail(container, queryString) {
         detailLabelHtml = `Aguardando<br>Recebimento`;
       } else if (statusClass === 'received_partial') {
         detailLabelHtml = `Recebido<br>Parcial`;
+      } else if (statusClass === 'purchase_received') {
+        detailLabelHtml = `Compra<br>Recebida`;
       }
     }
 

@@ -2,6 +2,7 @@
  * API Layer — Operações no Supabase (departments, tickets, ticket_visibility)
  */
 import { supabase } from './supabase.js';
+import { fetchAllProfiles } from './auth.js';
 
 // =====================
 // DEPARTMENTS
@@ -592,6 +593,53 @@ export async function markAllNotificationsAsRead() {
 
   if (error) throw error;
 }
+
+/** Cria uma nova notificação */
+export async function createNotification({ user_id, ticket_id, title, message, type = 'status_change' }) {
+  const { data, error } = await supabase
+    .from('notifications')
+    .insert({
+      user_id,
+      ticket_id,
+      title,
+      message,
+      type
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/** Remove usuários do setor de Compras atrelados a um chamado em ticket_users */
+export async function removeComprasCollaborators(ticketId) {
+  const { error } = await supabase.rpc('remove_compras_collaborators', {
+    p_ticket_id: ticketId
+  });
+
+  if (error) {
+    console.error('Erro ao desatrelar setor de compras via RPC:', error);
+    // Fallback caso a função RPC ainda não tenha sido rodada no SQL
+    const allProfiles = await fetchAllProfiles();
+    const comprasUserIds = allProfiles
+      .filter(p => {
+        const mainIsCompras = p.department?.name?.trim().toLowerCase() === 'compras';
+        const secIsCompras = p.departments?.some(d => d.name?.trim().toLowerCase() === 'compras');
+        return mainIsCompras || secIsCompras;
+      })
+      .map(p => p.id);
+
+    if (comprasUserIds.length > 0) {
+      await supabase
+        .from('ticket_users')
+        .delete()
+        .eq('ticket_id', ticketId)
+        .in('profile_id', comprasUserIds);
+    }
+  }
+}
+
 
 
 

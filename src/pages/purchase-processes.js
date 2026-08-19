@@ -10,7 +10,9 @@ import {
   sendTicketMessage,
   updateTicketStatus,
   uploadTicketAttachment,
-  fetchTicketAttachments
+  fetchTicketAttachments,
+  createNotification,
+  removeComprasCollaborators
 } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
@@ -977,68 +979,69 @@ export async function renderPurchaseProcesses(container, queryString) {
         // Recebido Total
         dialog.querySelector('#choiceTotalBtn')?.addEventListener('click', () => {
           closeDialog();
-          // Abrir segundo diálogo perguntando se deseja finalizar o chamado
-          const yesNoDialog = document.createElement('div');
-          yesNoDialog.id = 'yesNoDialog';
-          yesNoDialog.style = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1300; display:flex; align-items:center; justify-content:center;`;
-          yesNoDialog.innerHTML = `
-            <div style="background:var(--bg-card); padding:28px; border-radius:16px; box-shadow:var(--shadow-lg); width:90%; max-width:400px; display:flex; flex-direction:column; gap:20px; animation:slideUp 0.2s ease-out;">
-              <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text-primary);">Finalizar Chamado?</h3>
-              <p style="margin:0; font-size:0.92rem; color:var(--text-secondary); line-height:1.5;">Já que foi recebido total, deseja finalizar o chamado mudando seu status para Resolvido?</p>
-              <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:8px;">
-                <button id="yesBtn" class="btn" style="background:#16a34a; color:white; font-weight:600; padding:10px 20px; border-radius:8px; cursor:pointer;">Sim</button>
-                <button id="noBtn" class="btn btn-secondary" style="padding:10px 20px; border-radius:8px; cursor:pointer;">Não</button>
+
+          // Abrir modal de confirmação explicando o que acontecerá
+          const confirmTotalDialog = document.createElement('div');
+          confirmTotalDialog.id = 'confirmTotalDialog';
+          confirmTotalDialog.style = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1300; display:flex; align-items:center; justify-content:center;`;
+          confirmTotalDialog.innerHTML = `
+            <div style="background:var(--bg-card); padding:28px; border-radius:16px; box-shadow:var(--shadow-lg); width:90%; max-width:440px; display:flex; flex-direction:column; gap:20px; animation:slideUp 0.2s ease-out;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:var(--text-primary);">Confirmar Recebimento Total</h3>
+                <button id="confirmCloseBtn" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; font-size:1.25rem;">&times;</button>
+              </div>
+              
+              <div style="font-size:0.92rem; color:var(--text-secondary); line-height:1.5; background:var(--bg-app); padding:14px 16px; border-radius:10px; border:1px solid var(--border);">
+                <p style="margin:0 0 10px 0; font-weight:600; color:var(--text-primary);">Ao confirmar o recebimento total:</p>
+                <ul style="margin:0; padding-left:20px; display:flex; flex-direction:column; gap:6px;">
+                  <li>O <strong>processo de compra será encerrado</strong> com status de recebimento total.</li>
+                  <li>O <strong>chamado retornará para o autor</strong>.</li>
+                  <li>O <strong>setor de compras será desvinculado</strong> deste chamado.</li>
+                </ul>
+              </div>
+
+              <p style="margin:0; font-size:0.9rem; color:var(--text-muted);">Deseja prosseguir com o encerramento do processo de compra?</p>
+
+              <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:4px;">
+                <button id="cancelTotalConfirmBtn" class="btn btn-secondary" style="padding:10px 20px; border-radius:8px; cursor:pointer;">Cancelar</button>
+                <button id="executeTotalConfirmBtn" class="btn" style="background:#16a34a; color:white; font-weight:600; padding:10px 20px; border-radius:8px; cursor:pointer;">Sim, Confirmar</button>
               </div>
             </div>
           `;
-          document.body.appendChild(yesNoDialog);
+          document.body.appendChild(confirmTotalDialog);
 
-          const closeYesNo = () => {
-            yesNoDialog.remove();
+          const closeConfirmDialog = () => {
+            confirmTotalDialog.remove();
           };
 
-          // Se clicar em Sim
-          yesNoDialog.querySelector('#yesBtn')?.addEventListener('click', async () => {
-            closeYesNo();
+          confirmTotalDialog.querySelector('#confirmCloseBtn')?.addEventListener('click', closeConfirmDialog);
+          confirmTotalDialog.querySelector('#cancelTotalConfirmBtn')?.addEventListener('click', closeConfirmDialog);
+
+          confirmTotalDialog.querySelector('#executeTotalConfirmBtn')?.addEventListener('click', async () => {
+            closeConfirmDialog();
             try {
-              // Mudar status do chamado para Resolvido (resolved) e recebimento do processo para Total (total)
-              // Também finaliza o processo de compra (finalized)
+              // 1. Desatrelar colaboradores do setor de Compras
+              await removeComprasCollaborators(process.ticket_id);
+
+              // 2. Atualizar status do chamado para "Compra Recebida" (purchase_received)
+              await updateTicketStatus(process.ticket_id, 'purchase_received');
+
+              // 3. Registrar mensagem no chat
+              const ticketMsgContent = '📦 **Recebimento Total registrado**\nO processo de compra foi encerrado com recebimento total e o status do chamado foi atualizado para Compra Recebida.';
+              await sendTicketMessage(process.ticket_id, ticketMsgContent);
+
+              // 4. Encerrar processo de compra por último (status: finalized, receipt_status: total)
               await updatePurchaseProcess(process.id, {
                 status: 'finalized',
                 receipt_status: 'total'
               });
-              await updateTicketStatus(process.ticket_id, 'resolved');
 
-              // Registrar observação no histórico
-              await sendTicketMessage(process.ticket_id, '✅ **Recebimento Total registrado**\nO chamado foi finalizado e marcado como Resolvido.');
-              
-              showToast('Recebimento Total registrado e chamado Resolvido!', 'success');
+              showToast('Recebimento Total registrado e processo encerrado com sucesso!', 'success');
               modal.classList.remove('open');
               await loadData();
             } catch (err) {
               console.error(err);
-              showToast('Erro ao finalizar chamado e processo de compra.', 'error');
-            }
-          });
-
-          // Se clicar em Não
-          yesNoDialog.querySelector('#noBtn')?.addEventListener('click', async () => {
-            closeYesNo();
-            try {
-              // Mudar apenas o drop down recebimento para Total (total)
-              await updatePurchaseProcess(process.id, {
-                receipt_status: 'total'
-              });
-
-              // Registrar observação no histórico
-              await sendTicketMessage(process.ticket_id, '📦 **Recebimento Total registrado**\nStatus de recebimento atualizado para Total.');
-              
-              showToast('Recebimento Total registrado!', 'success');
-              modal.classList.remove('open');
-              await loadData();
-            } catch (err) {
-              console.error(err);
-              showToast('Erro ao atualizar recebimento.', 'error');
+              showToast('Erro ao registrar recebimento total.', 'error');
             }
           });
         });
