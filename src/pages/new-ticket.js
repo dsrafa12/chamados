@@ -215,6 +215,33 @@ export async function renderNewTicket(container) {
       });
     });
 
+    // Definir min e validar prazo em tempo real no campo deadline
+    const deadlineEl = document.getElementById('deadline');
+    if (deadlineEl) {
+      const getMinDateStr = () => {
+        const minDate = new Date(Date.now() + 60 * 60 * 1000);
+        const yyyy = minDate.getFullYear();
+        const mm = String(minDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(minDate.getDate()).padStart(2, '0');
+        const hh = String(minDate.getHours()).padStart(2, '0');
+        const mi = String(minDate.getMinutes()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+      };
+
+      deadlineEl.min = getMinDateStr();
+
+      deadlineEl.addEventListener('change', () => {
+        if (deadlineEl.value) {
+          const selected = new Date(deadlineEl.value);
+          const minAllowed = new Date(Date.now() + 60 * 60 * 1000);
+          if (selected < minAllowed) {
+            deadlineEl.value = getMinDateStr();
+            showToast('O prazo mínimo para conclusão deve ser de no mínimo 1 hora a frente.', 'warning');
+          }
+        }
+      });
+    }
+
     // Submit
     document.getElementById('ticketForm')?.addEventListener('submit', handleSubmit);
   }
@@ -243,8 +270,86 @@ export async function renderNewTicket(container) {
       return;
     }
 
-    const deadlineVal = document.getElementById('deadline').value;
-    const deadline = deadlineVal ? new Date(deadlineVal).toISOString() : null;
+    const deadlineInput = document.getElementById('deadline');
+    let deadlineIso = null;
+    let isAutoOneHour = false;
+
+    // Calcular data e hora mínima (+1 hora a partir de agora)
+    const now = new Date();
+    const minDeadline = new Date(now.getTime() + 60 * 60 * 1000);
+    
+    // Helper para converter objeto Date em string compatível com input datetime-local em horário local
+    const toDatetimeLocalString = (dateObj) => {
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      const hours = String(dateObj.getHours()).padStart(2, '0');
+      const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    if (!deadlineInput.value) {
+      deadlineInput.value = toDatetimeLocalString(minDeadline);
+      deadlineIso = minDeadline.toISOString();
+      isAutoOneHour = true;
+    } else {
+      const selectedDate = new Date(deadlineInput.value);
+      if (selectedDate < minDeadline) {
+        deadlineInput.value = toDatetimeLocalString(minDeadline);
+        deadlineIso = minDeadline.toISOString();
+        isAutoOneHour = true;
+      } else {
+        deadlineIso = selectedDate.toISOString();
+      }
+    }
+
+    // Modal de confirmação antes de salvar
+    const confirmMessage = isAutoOneHour 
+      ? 'A data de prazo não foi definida ou é inferior ao limite mínimo. <strong>O chamado será salvo automaticamente com 1 hora de prazo a partir de agora.</strong>'
+      : 'Confira os dados do chamado antes de confirmar a criação.';
+
+    const confirmed = await new Promise((resolve) => {
+      const confirmDialog = document.createElement('div');
+      confirmDialog.className = 'modal-container open';
+      confirmDialog.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1300; display:flex; align-items:center; justify-content:center;';
+      confirmDialog.innerHTML = `
+        <div class="modal" style="width:90%; max-width:440px; padding:24px; display:flex; flex-direction:column; gap:16px; background:#ffffff; border-radius:16px; border:1px solid var(--border); box-shadow:var(--shadow-lg); animation:slideUp 0.2s ease-out;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; font-size:1.1rem; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+              ❓ Confirmar Criação do Chamado
+            </h3>
+            <button id="closeConfirmModalBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);">✕</button>
+          </div>
+
+          <div style="background:${isAutoOneHour ? '#eff6ff' : '#f8fafc'}; border:1px solid ${isAutoOneHour ? '#bfdbfe' : '#e2e8f0'}; border-radius:8px; padding:12px 14px; font-size:0.86rem; color:${isAutoOneHour ? '#1e40af' : 'var(--text-secondary)'}; display:flex; flex-direction:column; gap:4px;">
+            <span>${confirmMessage}</span>
+          </div>
+
+          <p style="margin:0; font-size:0.9rem; color:var(--text-primary); font-weight:600;">
+            Deseja realmente salvar e abrir este chamado?
+          </p>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+            <button id="cancelSaveBtn" class="btn btn-secondary" style="padding:8px 18px;">Cancelar</button>
+            <button id="confirmSaveBtn" class="btn btn-primary" style="padding:8px 18px; font-weight:600;">
+              Sim, Salvar Chamado
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(confirmDialog);
+
+      const closeDialog = (val) => {
+        confirmDialog.remove();
+        resolve(val);
+      };
+
+      confirmDialog.querySelector('#closeConfirmModalBtn')?.addEventListener('click', () => closeDialog(false));
+      confirmDialog.querySelector('#cancelSaveBtn')?.addEventListener('click', () => closeDialog(false));
+      confirmDialog.querySelector('#confirmSaveBtn')?.addEventListener('click', () => closeDialog(true));
+    });
+
+    if (!confirmed) return;
 
     loading = true;
     render();
@@ -258,7 +363,7 @@ export async function renderNewTicket(container) {
         description,
         destinationDeptId,
         priority,
-        deadline,
+        deadline: deadlineIso,
         visibilityDeptIds: Array.from(selectedVisibility),
         profileIds: Array.from(selectedUsers),
       });
