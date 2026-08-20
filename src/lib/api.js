@@ -428,6 +428,15 @@ export async function fetchComprasReportData() {
   }
 }
 
+/** Alterna se o chamado deve ser desconsiderado no relatório de compras */
+export async function toggleIgnoreInComprasReport(ticketId, ignore) {
+  const { error } = await supabase
+    .from('tickets')
+    .update({ ignore_in_compras_report: ignore })
+    .eq('id', ticketId);
+  if (error) throw error;
+}
+
 /** Busca processo de compra associado a um chamado */
 export async function fetchPurchaseProcessByTicket(ticketId) {
   const { data, error } = await supabase

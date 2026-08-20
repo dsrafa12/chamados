@@ -13,7 +13,9 @@ import {
   fetchTicketAttachments,
   createNotification,
   removeComprasCollaborators,
-  fetchComprasReportData
+  fetchComprasReportData,
+  toggleIgnoreInComprasReport,
+  createPurchaseProcess
 } from '../lib/api.js';
 import { navigateTo } from '../lib/router.js';
 import { showToast } from '../lib/toast.js';
@@ -44,6 +46,9 @@ export async function renderPurchaseProcesses(container, queryString) {
   let reportTickets = [];
   let reportStartDate = '';
   let reportEndDate = '';
+  let reportRawMaterialFilter = 'all'; // 'all', 'raw_only', 'non_raw_only'
+  let reportCurrentPage = 1;
+  const reportPageSize = 10;
   
   const params = new URLSearchParams(queryString || '');
   const targetTicketId = params.get('ticketId');
@@ -253,8 +258,11 @@ export async function renderPurchaseProcesses(container, queryString) {
           forecastText = `${day}/${month}/${year}`;
         }
 
-        // Badges de Alerta (Bloqueado/Recebido)
+        // Badges de Alerta (Bloqueado/Recebido/Matéria-Prima)
         let warningHtml = '';
+        if (p.is_raw_material) {
+          warningHtml += `<span style="background:#fffbeb; color:#d97706; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:700; border:1px solid #fef3c7;">📦 MP</span>`;
+        }
         if (p.block_reason && p.block_reason !== 'none') {
           warningHtml += `<span style="background:#fee2e2; color:#b91c1c; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:700;">⚠️ Bloqueado</span>`;
         }
@@ -429,8 +437,16 @@ export async function renderPurchaseProcesses(container, queryString) {
     const viewContainer = document.getElementById('viewContainer');
     if (!viewContainer) return;
 
-    // Filtrar chamados pela faixa de data de abertura (se preenchida)
+    // Filtrar chamados pela faixa de data de abertura, tipo de matéria-prima e desconsiderar os marcados como ignorados
     const filteredReportTickets = reportTickets.filter(t => {
+      if (t.ignore_in_compras_report) return false;
+
+      const p = Array.isArray(t.purchase_process) ? t.purchase_process[0] : t.purchase_process;
+      const isRaw = !!(p && p.is_raw_material);
+
+      if (reportRawMaterialFilter === 'raw_only' && !isRaw) return false;
+      if (reportRawMaterialFilter === 'non_raw_only' && isRaw) return false;
+
       if (!t.created_at) return true;
       const createdDate = new Date(t.created_at);
 
@@ -455,18 +471,45 @@ export async function renderPurchaseProcesses(container, queryString) {
     // Taxa de conversão em processo de compra
     const conversionRate = totalDirectedToCompras > 0 ? Math.round((totalWithPurchaseProcess / totalDirectedToCompras) * 100) : 0;
 
-    // Total acumulado em R$ de compras
+    // Total acumulado em R$ de compras e métricas de Matéria-Prima
     let totalPurchaseAmount = 0;
+    let rawMaterialCount = 0;
+    let rawMaterialAmount = 0;
+
     filteredReportTickets.forEach(t => {
       const p = Array.isArray(t.purchase_process) ? t.purchase_process[0] : t.purchase_process;
-      if (p && p.purchase_amount) {
-        totalPurchaseAmount += parseFloat(p.purchase_amount) || 0;
+      if (p) {
+        if (p.is_raw_material) {
+          rawMaterialCount++;
+          if (p.purchase_amount) {
+            rawMaterialAmount += parseFloat(p.purchase_amount) || 0;
+          }
+        }
+        if (p.purchase_amount) {
+          totalPurchaseAmount += parseFloat(p.purchase_amount) || 0;
+        }
       }
     });
 
     // 2. Cálculo do tempo médio (Abertura vs Prazo de Conclusão) - ignora chamados sem prazo definido
     let totalDiffMs = 0;
     let validDeadlineCount = 0;
+
+    // Cálculo do tempo médio para GERAR o processo de compra (Abertura do Chamado x Criação do Processo)
+    let totalCreationDiffMs = 0;
+    let validCreationCount = 0;
+
+    // Acumuladores de tempo até Pedido Emitido / Aguardando Recebimento
+    let totalAwaitingReceiptDiffMs = 0;
+    let validAwaitingReceiptCount = 0;
+
+    // Acumuladores de tempo até Recebimento Total
+    let totalFinalizedDiffMs = 0;
+    let validFinalizedCount = 0;
+
+    // Cálculo de Pontualidade (No prazo x Atrasado) - Comparação: Previsão de Entrega vs Recebimento Total (finalized_at)
+    let onTimeCount = 0;
+    let delayedCount = 0;
 
     filteredReportTickets.forEach(t => {
       if (t.created_at && t.deadline) {
@@ -475,6 +518,45 @@ export async function renderPurchaseProcesses(container, queryString) {
         if (deadlineMs > createdMs) {
           totalDiffMs += (deadlineMs - createdMs);
           validDeadlineCount++;
+        }
+      }
+
+      const p = Array.isArray(t.purchase_process) ? t.purchase_process[0] : t.purchase_process;
+      if (p && p.created_at) {
+        const processCreatedMs = new Date(p.created_at).getTime();
+
+        if (t.created_at) {
+          const ticketCreatedMs = new Date(t.created_at).getTime();
+          if (processCreatedMs >= ticketCreatedMs) {
+            totalCreationDiffMs += (processCreatedMs - ticketCreatedMs);
+            validCreationCount++;
+          }
+        }
+
+        if (p.awaiting_receipt_at) {
+          const awaitingReceiptMs = new Date(p.awaiting_receipt_at).getTime();
+          if (awaitingReceiptMs >= processCreatedMs) {
+            totalAwaitingReceiptDiffMs += (awaitingReceiptMs - processCreatedMs);
+            validAwaitingReceiptCount++;
+          }
+        }
+
+        if (p.finalized_at) {
+          const finalizedMs = new Date(p.finalized_at).getTime();
+          if (finalizedMs >= processCreatedMs) {
+            totalFinalizedDiffMs += (finalizedMs - processCreatedMs);
+            validFinalizedCount++;
+          }
+
+          // Checagem de Pontualidade (Previsão de Entrega x Data de Recebimento Total)
+          if (p.delivery_forecast) {
+            const forecastMs = new Date(p.delivery_forecast + 'T23:59:59').getTime();
+            if (finalizedMs <= forecastMs) {
+              onTimeCount++;
+            } else {
+              delayedCount++;
+            }
+          }
         }
       }
     });
@@ -493,8 +575,67 @@ export async function renderPurchaseProcesses(container, queryString) {
       }
     }
 
-    // 3. Montagem das linhas da tabela analítica do relatório
-    const tableRowsHtml = filteredReportTickets.map(t => {
+    let avgCreationTimeText = '—';
+    if (validCreationCount > 0) {
+      const avgMs = totalCreationDiffMs / validCreationCount;
+      const avgHours = Math.floor(avgMs / (1000 * 60 * 60));
+      const avgDays = Math.floor(avgHours / 24);
+      const remainingHours = avgHours % 24;
+
+      if (avgDays > 0) {
+        avgCreationTimeText = `${avgDays}d ${remainingHours}h`;
+      } else if (avgHours > 0) {
+        avgCreationTimeText = `${avgHours}h`;
+      } else {
+        const avgMins = Math.round(avgMs / (1000 * 60));
+        avgCreationTimeText = `${avgMins} min`;
+      }
+    }
+
+    let avgAwaitingReceiptTimeText = '—';
+    if (validAwaitingReceiptCount > 0) {
+      const avgMs = totalAwaitingReceiptDiffMs / validAwaitingReceiptCount;
+      const avgHours = Math.floor(avgMs / (1000 * 60 * 60));
+      const avgDays = Math.floor(avgHours / 24);
+      const remainingHours = avgHours % 24;
+
+      if (avgDays > 0) {
+        avgAwaitingReceiptTimeText = `${avgDays}d ${remainingHours}h`;
+      } else if (avgHours > 0) {
+        avgAwaitingReceiptTimeText = `${avgHours}h`;
+      } else {
+        const avgMins = Math.round(avgMs / (1000 * 60));
+        avgAwaitingReceiptTimeText = `${avgMins} min`;
+      }
+    }
+
+    let avgFinalizedTimeText = '—';
+    if (validFinalizedCount > 0) {
+      const avgMs = totalFinalizedDiffMs / validFinalizedCount;
+      const avgHours = Math.floor(avgMs / (1000 * 60 * 60));
+      const avgDays = Math.floor(avgHours / 24);
+      const remainingHours = avgHours % 24;
+
+      if (avgDays > 0) {
+        avgFinalizedTimeText = `${avgDays}d ${remainingHours}h`;
+      } else if (avgHours > 0) {
+        avgFinalizedTimeText = `${avgHours}h`;
+      } else {
+        const avgMins = Math.round(avgMs / (1000 * 60));
+        avgFinalizedTimeText = `${avgMins} min`;
+      }
+    }
+
+    // Calcular paginação de 10 em 10
+    const totalPages = Math.ceil(filteredReportTickets.length / reportPageSize) || 1;
+    if (reportCurrentPage > totalPages) reportCurrentPage = totalPages;
+    if (reportCurrentPage < 1) reportCurrentPage = 1;
+
+    const startIndex = (reportCurrentPage - 1) * reportPageSize;
+    const paginatedTickets = filteredReportTickets.slice(startIndex, startIndex + reportPageSize);
+
+    // 3. Montagem das linhas da tabela analítica do relatório (Paginada de 10 em 10)
+    const tableRowsHtml = paginatedTickets.map(t => {
       const p = Array.isArray(t.purchase_process) ? t.purchase_process[0] : t.purchase_process;
       
       const createdFormatted = t.created_at ? new Date(t.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
@@ -512,22 +653,27 @@ export async function renderPurchaseProcesses(container, queryString) {
       }
 
       const statusText = STATUS_LABELS[p?.status] || p?.status || 'Ativo';
+      const rawMaterialBadge = p?.is_raw_material ? `<span style="display:inline-block; font-size:0.75rem; background:#fef3c7; color:#d97706; border:1px solid #fde68a; padding:2px 8px; border-radius:10px; font-weight:700; margin-top:4px; white-space:nowrap;">📦 Matéria-Prima</span>` : '';
       const processBadge = p ? `
-        <span style="background:#e0f2fe; color:#0369a1; padding:4px 10px; border-radius:12px; font-size:0.78rem; font-weight:600;">
-          🛒 Sim (${statusText})
+        <span style="background:#e0f2fe; color:#0369a1; padding:4px 10px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap; display:inline-block;">
+          Sim (${statusText})
         </span>
+        ${rawMaterialBadge ? `<div style="margin-top:2px;">${rawMaterialBadge}</div>` : ''}
       ` : `
-        <span style="background:#f1f5f9; color:#64748b; padding:4px 10px; border-radius:12px; font-size:0.78rem; font-weight:600;">
+        <span style="background:#f1f5f9; color:#64748b; padding:4px 10px; border-radius:12px; font-size:0.78rem; font-weight:600; white-space:nowrap; display:inline-block;">
           Não gerado
         </span>
       `;
 
       return `
-        <tr style="border-bottom:1px solid var(--border); transition:background 0.2s;" class="clickable-row" data-id="${p ? p.id : ''}" data-ticket-id="${t.id}">
+        <tr style="border-bottom:1px solid var(--border); transition:background 0.2s;" data-id="${p ? p.id : ''}" data-ticket-id="${t.id}">
           <td style="padding:14px 16px;">
             <strong style="color:var(--primary); font-size:0.88rem;">Nº ${t.ticket_number || ''}</strong>
-            <div style="font-size:0.82rem; color:var(--text-secondary); max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            <div style="font-size:0.82rem; font-weight:600; color:var(--text-primary); max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">
               ${escapeHtml(t.title || '')}
+            </div>
+            <div style="font-size:0.76rem; color:var(--text-muted); margin-top:2px;">
+              👤 ${escapeHtml(t.creator?.full_name || '—')}
             </div>
           </td>
           <td style="padding:14px 16px; font-size:0.85rem; color:var(--text-primary);">
@@ -535,9 +681,6 @@ export async function renderPurchaseProcesses(container, queryString) {
           </td>
           <td style="padding:14px 16px; font-size:0.85rem; color:var(--text-primary);">
             ${deadlineFormatted}
-          </td>
-          <td style="padding:14px 16px; font-size:0.85rem; color:var(--text-secondary);">
-            ${escapeHtml(t.creator?.full_name || '—')}
           </td>
           <td style="padding:14px 16px; font-size:0.85rem; text-align:center;">
             ${processBadge}
@@ -548,6 +691,11 @@ export async function renderPurchaseProcesses(container, queryString) {
           <td style="padding:14px 16px; font-size:0.85rem; text-align:center; color:var(--text-primary);">
             ${forecastFormatted}
           </td>
+          <td style="padding:14px 16px; font-size:0.85rem; text-align:center; position:relative;">
+            <button class="btn btn-sm action-dropdown-btn" data-ticket-id="${t.id}" data-ticket-number="${t.ticket_number || ''}" data-ticket-title="${escapeHtml(t.title || '')}" data-process-id="${p ? p.id : ''}" data-is-raw="${p?.is_raw_material ? 'true' : 'false'}" style="padding:6px 12px; font-size:0.82rem; font-weight:600; background:var(--bg-app); border:1px solid var(--border); border-radius:6px; cursor:pointer; color:var(--text-secondary);">
+              Ações ⚙️ ▾
+            </button>
+          </td>
         </tr>
       `;
     }).join('');
@@ -555,23 +703,37 @@ export async function renderPurchaseProcesses(container, queryString) {
     viewContainer.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:24px;">
         
-        <!-- BARRA DE FILTRO POR DATA DE ABERTURA -->
+        <!-- BARRA DE FILTRO POR DATA DE ABERTURA E MATÉRIA-PRIMA -->
         <div class="card" style="padding:16px 24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; background:var(--bg-card);">
-          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-            <span style="font-weight:700; font-size:0.9rem; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
-              📅 Filtro por Data de Abertura:
-            </span>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <label style="font-size:0.82rem; color:var(--text-secondary); font-weight:600;">Início:</label>
-              <input type="date" id="reportStartDateInput" class="input" value="${reportStartDate}" style="padding:6px 12px; font-size:0.85rem; width:150px;" />
+          <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <span style="font-weight:700; font-size:0.9rem; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                📅 Data de Abertura:
+              </span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <label style="font-size:0.82rem; color:var(--text-secondary); font-weight:600;">Início:</label>
+                <input type="date" id="reportStartDateInput" class="input" value="${reportStartDate}" style="padding:6px 12px; font-size:0.85rem; width:145px;" />
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <label style="font-size:0.82rem; color:var(--text-secondary); font-weight:600;">Fim:</label>
+                <input type="date" id="reportEndDateInput" class="input" value="${reportEndDate}" style="padding:6px 12px; font-size:0.85rem; width:145px;" />
+              </div>
             </div>
+
             <div style="display:flex; align-items:center; gap:8px;">
-              <label style="font-size:0.82rem; color:var(--text-secondary); font-weight:600;">Fim:</label>
-              <input type="date" id="reportEndDateInput" class="input" value="${reportEndDate}" style="padding:6px 12px; font-size:0.85rem; width:150px;" />
+              <span style="font-weight:700; font-size:0.9rem; color:var(--text-primary);">
+                Tipo:
+              </span>
+              <select id="reportRawMaterialSelect" class="select" style="padding:6px 32px 6px 12px; font-size:0.85rem; font-weight:600; min-width:180px;">
+                <option value="all" ${reportRawMaterialFilter === 'all' ? 'selected' : ''}>Todos os Processos</option>
+                <option value="raw_only" ${reportRawMaterialFilter === 'raw_only' ? 'selected' : ''}>Apenas Matéria-Prima</option>
+                <option value="non_raw_only" ${reportRawMaterialFilter === 'non_raw_only' ? 'selected' : ''}>Outras Compras (Exceto MP)</option>
+              </select>
             </div>
-            ${(reportStartDate || reportEndDate) ? `
+
+            ${(reportStartDate || reportEndDate || reportRawMaterialFilter !== 'all') ? `
               <button id="clearDateFilterBtn" class="btn btn-sm" style="background:#fee2e2; color:#991b1b; border:none; padding:6px 12px; font-weight:600; cursor:pointer; border-radius:6px;">
-                ✖ Limpar Filtro
+                ✖ Limpar Filtros
               </button>
             ` : ''}
           </div>
@@ -581,30 +743,80 @@ export async function renderPurchaseProcesses(container, queryString) {
         </div>
 
         <!-- CARDS DE METRICAS PRINCIPAIS -->
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px;">
           
-          <div class="card" style="padding:20px; display:flex; flex-direction:column; gap:8px; border-left:4px solid #3b82f6;">
-            <span style="font-size:0.82rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Chamados em Compras</span>
-            <div style="font-size:1.8rem; font-weight:800; color:var(--text-primary);">${totalDirectedToCompras}</div>
-            <span style="font-size:0.78rem; color:var(--text-secondary);">Direcionados ao setor</span>
+          <div class="card has-tooltip-card" style="padding:16px; display:flex; flex-direction:column; gap:6px; border-left:4px solid #3b82f6;">
+            <div class="tooltip-card">Quantidade total de chamados direcionados ao setor de compras no período selecionado.</div>
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Chamados em Compras</span>
+            <div style="font-size:1.5rem; font-weight:800; color:var(--text-primary);">${totalDirectedToCompras}</div>
+            <span style="font-size:0.72rem; color:var(--text-secondary);">Direcionados ao setor</span>
           </div>
 
-          <div class="card" style="padding:20px; display:flex; flex-direction:column; gap:8px; border-left:4px solid #0f766e;">
-            <span style="font-size:0.82rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Processos Criados</span>
-            <div style="font-size:1.8rem; font-weight:800; color:#0f766e;">${totalWithPurchaseProcess} <span style="font-size:0.9rem; font-weight:600; color:var(--text-muted);">(${conversionRate}%)</span></div>
-            <span style="font-size:0.78rem; color:var(--text-secondary);">${totalWithoutPurchaseProcess} pendentes de criação</span>
+          <div class="card has-tooltip-card" style="padding:16px; display:flex; flex-direction:column; gap:6px; border-left:4px solid #0f766e;">
+            <div class="tooltip-card">Total de chamados com processo de compra criado e a taxa de conversão correspondente.</div>
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Processos Criados</span>
+            <div style="font-size:1.5rem; font-weight:800; color:#0f766e;">${totalWithPurchaseProcess} <span style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">(${conversionRate}%)</span></div>
+            <span style="font-size:0.72rem; color:var(--text-secondary);">${totalWithoutPurchaseProcess} pendentes</span>
           </div>
 
-          <div class="card" style="padding:20px; display:flex; flex-direction:column; gap:8px; border-left:4px solid #8b5cf6;">
-            <span style="font-size:0.82rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Tempo Médio de Prazo</span>
-            <div style="font-size:1.8rem; font-weight:800; color:#8b5cf6;">${avgTimeText}</div>
-            <span style="font-size:0.78rem; color:var(--text-secondary);">${validDeadlineCount} chamados com prazo definido</span>
+          <div class="card has-tooltip-card" style="padding:16px; display:flex; flex-direction:column; gap:6px; border-left:4px solid #10b981;">
+            <div class="tooltip-card">Soma total dos valores financeiros lançados em todos os processos de compra.</div>
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Total Investido</span>
+            <div style="font-size:1.35rem; font-weight:800; color:#10b981;">R$ ${totalPurchaseAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <span style="font-size:0.72rem; color:var(--text-secondary);">Soma dos valores</span>
           </div>
 
-          <div class="card" style="padding:20px; display:flex; flex-direction:column; gap:8px; border-left:4px solid #10b981;">
-            <span style="font-size:0.82rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Total Investido</span>
-            <div style="font-size:1.6rem; font-weight:800; color:#10b981;">R$ ${totalPurchaseAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <span style="font-size:0.78rem; color:var(--text-secondary);">Soma dos valores lançados</span>
+          <div class="card has-tooltip-card" style="padding:16px; display:flex; flex-direction:column; gap:6px; border-left:4px solid #d97706;">
+            <div class="tooltip-card">Quantidade de chamados com processos de compra marcados como Matéria-Prima.</div>
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Matéria-Prima</span>
+            <div style="font-size:1.5rem; font-weight:800; color:#d97706;">${rawMaterialCount} <span style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">chamados</span></div>
+            <span style="font-size:0.72rem; color:var(--text-secondary);">Processos marcados</span>
+          </div>
+
+          <div class="card has-tooltip-card" style="padding:16px; display:flex; flex-direction:column; gap:6px; border-left:4px solid #059669;">
+            <div class="tooltip-card">Valor total acumulado gasto exclusivamente em processos referentes a Matéria-Prima.</div>
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Gasto Matéria-Prima</span>
+            <div style="font-size:1.35rem; font-weight:800; color:#059669;">R$ ${rawMaterialAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <span style="font-size:0.72rem; color:var(--text-secondary);">Valor investido MP</span>
+          </div>
+
+          <div class="card has-tooltip-card" style="padding:16px; display:flex; flex-direction:column; gap:6px; border-left:4px solid #8b5cf6;">
+            <div class="tooltip-card">Tempo médio da abertura do chamado até o prazo final estipulado de conclusão.</div>
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Tempo Médio Prazo</span>
+            <div style="font-size:1.5rem; font-weight:800; color:#8b5cf6;">${avgTimeText}</div>
+            <span style="font-size:0.72rem; color:var(--text-secondary);">${validDeadlineCount} com prazo</span>
+          </div>
+
+          <div class="card has-tooltip-card" style="padding:16px; display:flex; flex-direction:column; gap:6px; border-left:4px solid #0284c7;">
+            <div class="tooltip-card">Tempo médio demorado da abertura do chamado até a criação do processo de compra.</div>
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Tempo Gerar Processo</span>
+            <div style="font-size:1.5rem; font-weight:800; color:#0284c7;">${avgCreationTimeText}</div>
+            <span style="font-size:0.72rem; color:var(--text-secondary);">Abertura x Processo Compra</span>
+          </div>
+
+          <div class="card has-tooltip-card" style="padding:16px; display:flex; flex-direction:column; gap:6px; border-left:4px solid #0891b2;">
+            <div class="tooltip-card">Tempo médio entre a criação do processo de compra e a emissão do pedido (Aguardando Recebimento).</div>
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Tempo Gerar Pedido</span>
+            <div style="font-size:1.5rem; font-weight:800; color:#0891b2;">${avgAwaitingReceiptTimeText}</div>
+            <span style="font-size:0.72rem; color:var(--text-secondary);">Processo x Pedido</span>
+          </div>
+
+          <div class="card has-tooltip-card" style="padding:16px; display:flex; flex-direction:column; gap:6px; border-left:4px solid #16a34a;">
+            <div class="tooltip-card">Tempo médio entre a criação do processo de compra e a conclusão do recebimento total.</div>
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Tempo Recebimento Total</span>
+            <div style="font-size:1.5rem; font-weight:800; color:#16a34a;">${avgFinalizedTimeText}</div>
+            <span style="font-size:0.72rem; color:var(--text-secondary);">Processo x Recebimento Total</span>
+          </div>
+
+          <div class="card has-tooltip-card" style="padding:16px; display:flex; flex-direction:column; gap:6px; border-left:4px solid #ea580c;">
+            <div class="tooltip-card">Comparativo da previsão de entrega x data de recebimento. Exibe quantos processos foram concluídos no prazo e quantos atrasaram.</div>
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Pontualidade</span>
+            <div style="font-size:1.5rem; font-weight:800; color:var(--text-primary);">
+              <span style="color:#16a34a;">${onTimeCount}</span> <span style="font-size:0.9rem; color:var(--text-muted);">/</span> <span style="color:#dc2626;">${delayedCount}</span>
+            </div>
+            <span style="font-size:0.72rem; font-weight:600;">
+              <span style="color:#16a34a;">No prazo</span> <span style="color:var(--text-muted);">x</span> <span style="color:#dc2626;">Atrasado</span>
+            </span>
           </div>
 
         </div>
@@ -648,7 +860,10 @@ export async function renderPurchaseProcesses(container, queryString) {
 
           <!-- GRÁFICO 2: DISTRIBUIÇÃO POR STATUS DO PROCESSO -->
           <div class="card" style="padding:20px; display:flex; flex-direction:column; gap:16px;">
-            <h4 style="margin:0; font-size:0.95rem; font-weight:700; color:var(--text-primary);">Distribuição por Status dos Processos</h4>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h4 style="margin:0; font-size:0.95rem; font-weight:700; color:var(--text-primary);">Distribuição por Status dos Processos</h4>
+              <span style="font-size:0.75rem; font-weight:600; color:#0284c7; background:#e0f2fe; padding:2px 8px; border-radius:10px;">⚡ Em Tempo Real</span>
+            </div>
             
             <div style="display:flex; flex-direction:column; gap:10px; justify-content:center; flex:1;">
               ${(() => {
@@ -669,29 +884,24 @@ export async function renderPurchaseProcesses(container, queryString) {
                   sem_processo: '#94a3b8'
                 };
 
-                const statusLabelMap = {
-                  awaiting_start: 'Gerado Processo',
-                  in_analysis: 'Em Análise',
-                  in_quotation: 'Em Cotação',
-                  order_issued: 'Pedido Emitido',
-                  awaiting_receipt: 'Aguardando Recebimento',
-                  finalized: 'Finalizado',
-                  sem_processo: 'Sem Processo Criado'
-                };
+                const totalProc = filteredReportTickets.length;
+                if (totalProc === 0) {
+                  return `<span style="font-size:0.85rem; color:var(--text-muted); text-align:center;">Nenhum dado no período</span>`;
+                }
 
                 return Object.entries(statusCounts).map(([stKey, count]) => {
-                  const pct = totalDirectedToCompras > 0 ? Math.round((count / totalDirectedToCompras) * 100) : 0;
-                  const color = statusColorMap[stKey] || '#6366f1';
-                  const label = statusLabelMap[stKey] || STATUS_LABELS[stKey] || stKey;
+                  const label = stKey === 'sem_processo' ? 'Sem Processo Criado' : (STATUS_LABELS[stKey] || stKey);
+                  const pct = Math.round((count / totalProc) * 100);
+                  const color = statusColorMap[stKey] || '#64748b';
 
                   return `
                     <div style="display:flex; flex-direction:column; gap:4px;">
                       <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
-                        <span style="color:var(--text-secondary); font-weight:600;">${label}</span>
-                        <span style="color:var(--text-primary); font-weight:700;">${count} (${pct}%)</span>
+                        <span style="font-weight:600; color:var(--text-secondary);">${label}</span>
+                        <strong style="color:var(--text-primary);">${count} <span style="font-size:0.75rem; font-weight:normal; color:var(--text-muted);">(${pct}%)</span></strong>
                       </div>
-                      <div style="width:100%; height:8px; background:var(--bg-app); border-radius:4px; overflow:hidden;">
-                        <div style="width:${pct}%; height:100%; background:${color}; border-radius:4px; transition:width 0.4s ease;"></div>
+                      <div style="height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden;">
+                        <div style="width:${pct}%; height:100%; background:${color}; border-radius:3px; transition:width 0.5s ease;"></div>
                       </div>
                     </div>
                   `;
@@ -702,24 +912,24 @@ export async function renderPurchaseProcesses(container, queryString) {
 
         </div>
 
-        <!-- TABELA DETALHADA DO RELATÓRIO -->
-        <div class="card" style="padding:0; overflow:hidden;">
-          <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; font-size:1.1rem; font-weight:700; color:var(--text-primary);">Relatório Analítico de Chamados e Compras</h3>
-            <span style="font-size:0.82rem; color:var(--text-muted);">${reportTickets.length} registros no total</span>
+        <!-- TABELA ANALÍTICA DETALHADA -->
+        <div class="card" style="padding:0; overflow:hidden; border-radius:16px; margin-bottom:120px;">
+          <div style="padding:20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <h4 style="margin:0; font-size:1rem; font-weight:700; color:var(--text-primary);">Relatório Analítico de Chamados e Compras</h4>
+            <span style="font-size:0.8rem; color:var(--text-muted);">Total de ${filteredReportTickets.length} registros</span>
           </div>
 
           <div style="overflow-x:auto;">
-            <table class="tickets-table" style="width:100%; border-collapse:collapse; text-align:left;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.88rem; text-align:left;">
               <thead>
-                <tr style="background:var(--bg-app); border-bottom:1px solid var(--border);">
-                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary);">Chamado / Título</th>
-                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary);">Data / Hora Abertura</th>
-                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary);">Prazo de Conclusão</th>
-                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary);">Autor</th>
-                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); text-align:center;">Processo Gerado?</th>
-                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); text-align:right;">Valor da Compra</th>
-                  <th style="padding:14px 16px; font-size:0.82rem; font-weight:600; color:var(--text-secondary); text-align:center;">Previsão Entrega</th>
+                <tr style="background:var(--bg-app); border-bottom:1px solid var(--border); font-size:0.78rem; text-transform:uppercase; color:var(--text-muted); font-weight:700;">
+                  <th style="padding:12px 16px;">Chamado / Título / Autor</th>
+                  <th style="padding:12px 16px;">Data Abertura</th>
+                  <th style="padding:12px 16px;">Prazo Estipulado</th>
+                  <th style="padding:12px 16px; text-align:center;">Processo Gerado?</th>
+                  <th style="padding:12px 16px; text-align:right;">Valor da Compra</th>
+                  <th style="padding:12px 16px; text-align:center;">Previsão Entrega</th>
+                  <th style="padding:12px 16px; text-align:center;">Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -731,6 +941,28 @@ export async function renderPurchaseProcesses(container, queryString) {
               </tbody>
             </table>
           </div>
+
+          <!-- CONTROLES DE PAGINAÇÃO DE 10 EM 10 -->
+          <div style="padding:16px 20px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; background:var(--bg-card);">
+            <span style="font-size:0.82rem; color:var(--text-secondary); font-weight:500;">
+              Mostrando <strong>${filteredReportTickets.length > 0 ? startIndex + 1 : 0}</strong> a <strong>${Math.min(startIndex + reportPageSize, filteredReportTickets.length)}</strong> de <strong>${filteredReportTickets.length}</strong> chamados
+            </span>
+
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button id="reportPrevPageBtn" class="btn btn-sm" ${reportCurrentPage <= 1 ? 'disabled' : ''} style="padding:6px 12px; font-size:0.82rem; font-weight:600; border:1px solid var(--border); background:var(--bg-card); cursor:${reportCurrentPage <= 1 ? 'not-allowed' : 'pointer'}; opacity:${reportCurrentPage <= 1 ? '0.5' : '1'}; border-radius:6px;">
+                ◀ Anterior
+              </button>
+
+              <span style="font-size:0.82rem; font-weight:700; color:var(--text-primary); padding:0 8px;">
+                Página ${reportCurrentPage} de ${totalPages}
+              </span>
+
+              <button id="reportNextPageBtn" class="btn btn-sm" ${reportCurrentPage >= totalPages ? 'disabled' : ''} style="padding:6px 12px; font-size:0.82rem; font-weight:600; border:1px solid var(--border); background:var(--bg-card); cursor:${reportCurrentPage >= totalPages ? 'not-allowed' : 'pointer'}; opacity:${reportCurrentPage >= totalPages ? '0.5' : '1'}; border-radius:6px;">
+                Próxima ▶
+              </button>
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -779,16 +1011,352 @@ export async function renderPurchaseProcesses(container, queryString) {
       filterAndRender();
     });
 
+    // Fechar menu de ações ao clicar em qualquer lugar fora da janela do menu
+    window.addEventListener('click', (e) => {
+      const existingMenu = document.getElementById('reportActionMenu');
+      if (existingMenu && !e.target.closest('.action-dropdown-btn') && !existingMenu.contains(e.target)) {
+        existingMenu.remove();
+      }
+    });
+
     const viewContainer = document.getElementById('viewContainer');
 
-    // Delegar cliques nos cards/linhas para abrir o modal de detalhes + manipular filtros de data do relatório
-    viewContainer?.addEventListener('click', (e) => {
-      if (e.target.id === 'clearDateFilterBtn') {
-        reportStartDate = '';
-        reportEndDate = '';
+    // Delegar cliques nos cards/linhas para abrir o modal de detalhes + manipular filtros de data do relatório + menu de Ações + Paginação
+    viewContainer?.addEventListener('click', async (e) => {
+      const existingMenu = document.getElementById('reportActionMenu');
+      if (existingMenu && !e.target.closest('.action-dropdown-btn') && !existingMenu.contains(e.target)) {
+        existingMenu.remove();
+      }
+
+      // Navegação da paginação
+      const prevBtn = e.target.closest('#reportPrevPageBtn');
+      if (prevBtn && reportCurrentPage > 1) {
+        reportCurrentPage--;
         renderReport();
         return;
       }
+
+      const nextBtn = e.target.closest('#reportNextPageBtn');
+      if (nextBtn) {
+        const totalPages = Math.ceil(filteredReportTickets.length / reportPageSize) || 1;
+        if (reportCurrentPage < totalPages) {
+          reportCurrentPage++;
+          renderReport();
+          return;
+        }
+      }
+
+      if (e.target.id === 'clearDateFilterBtn') {
+        reportStartDate = '';
+        reportEndDate = '';
+        reportRawMaterialFilter = 'all';
+        reportCurrentPage = 1;
+        renderReport();
+        return;
+      }
+
+      // Tratar clique no botão Ações ⚙️
+      const dropdownBtn = e.target.closest('.action-dropdown-btn');
+      if (dropdownBtn) {
+        e.stopPropagation();
+        
+        // Se já houver um menu aberto no mesmo botão, apenas o fecha
+        if (existingMenu && existingMenu.getAttribute('data-for-ticket') === dropdownBtn.getAttribute('data-ticket-id')) {
+          existingMenu.remove();
+          return;
+        }
+
+        if (existingMenu) existingMenu.remove();
+
+        const ticketId = dropdownBtn.getAttribute('data-ticket-id');
+        const ticketNumber = dropdownBtn.getAttribute('data-ticket-number');
+        const ticketTitle = dropdownBtn.getAttribute('data-ticket-title');
+        const processId = dropdownBtn.getAttribute('data-process-id');
+        const isRaw = dropdownBtn.getAttribute('data-is-raw') === 'true';
+
+        const rect = dropdownBtn.getBoundingClientRect();
+        const menu = document.createElement('div');
+        menu.id = 'reportActionMenu';
+        menu.setAttribute('data-for-ticket', ticketId);
+
+        // Estimar altura do menu (~170px) para decidir se abre para cima ou para baixo
+        const menuHeight = 175;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const openUpward = spaceBelow < menuHeight && rect.top > menuHeight;
+        
+        const topPos = openUpward ? (rect.top - menuHeight - 4) : (rect.bottom + 4);
+        menu.style = `position:fixed; top:${topPos}px; left:${rect.left - 40}px; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-lg); z-index:1200; display:flex; flex-direction:column; min-width:210px; overflow:hidden; animation:slideUp 0.15s ease-out;`;
+        
+        menu.innerHTML = `
+          <button id="actionViewDetailsBtn" style="padding:10px 14px; text-align:left; background:transparent; border:none; border-bottom:1px solid var(--border); font-size:0.85rem; font-weight:600; color:var(--primary); cursor:pointer; display:flex; align-items:center; gap:8px; transition:background 0.2s;">
+            👁️ Ver Detalhes
+          </button>
+          <button id="actionViewDatesBtn" style="padding:10px 14px; text-align:left; background:transparent; border:none; border-bottom:1px solid var(--border); font-size:0.85rem; font-weight:600; color:#0891b2; cursor:pointer; display:flex; align-items:center; gap:8px; transition:background 0.2s;">
+            📅 Ver Todas as Datas
+          </button>
+          <button id="actionIgnoreTicketBtn" style="padding:10px 14px; text-align:left; background:transparent; border:none; border-bottom:1px solid var(--border); font-size:0.85rem; font-weight:600; color:#dc2626; cursor:pointer; display:flex; align-items:center; gap:8px; transition:background 0.2s;">
+            🚫 Desconsiderar Chamado
+          </button>
+          <button id="actionToggleRawMaterialBtn" style="padding:10px 14px; text-align:left; background:transparent; border:none; font-size:0.85rem; font-weight:600; color:#d97706; cursor:pointer; display:flex; align-items:center; gap:8px; transition:background 0.2s;">
+            📦 ${isRaw ? 'Desmarcar Matéria-Prima' : 'Relacionar como Matéria-Prima'}
+          </button>
+        `;
+
+        document.body.appendChild(menu);
+
+        // Opção 0: Ver Detalhes do Chamado e Processo no Modal
+        menu.querySelector('#actionViewDetailsBtn')?.addEventListener('click', async (evt) => {
+          evt.stopPropagation();
+          menu.remove();
+          
+          let proc = processes.find(p => p.id === processId || p.ticket_id === ticketId);
+          if (!proc) {
+            const foundTicket = reportTickets.find(t => t.id === ticketId);
+            proc = {
+              id: '',
+              ticket_id: ticketId,
+              status: 'awaiting_start',
+              ticket: foundTicket || {}
+            };
+          }
+          openStatusModal(proc);
+        });
+
+        // Opção Ver Todas as Datas
+        menu.querySelector('#actionViewDatesBtn')?.addEventListener('click', (evt) => {
+          evt.stopPropagation();
+          menu.remove();
+
+          const foundTicket = reportTickets.find(t => t.id === ticketId) || {};
+          const proc = Array.isArray(foundTicket.purchase_process) ? foundTicket.purchase_process[0] : (foundTicket.purchase_process || processes.find(p => p.ticket_id === ticketId));
+
+          const formatDt = (val) => {
+            if (!val) return '—';
+            if (val.length === 10 && val.includes('-')) {
+              const [y, m, d] = val.split('-');
+              return `${d}/${m}/${y}`;
+            }
+            try {
+              return new Date(val).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+            } catch (e) {
+              return val;
+            }
+          };
+
+          const deadlineColor = foundTicket.deadline ? '#8b5cf6' : 'var(--text-muted)';
+          const createdAtColor = proc?.created_at ? '#0284c7' : 'var(--text-muted)';
+          const awaitingReceiptColor = proc?.awaiting_receipt_at ? '#0891b2' : 'var(--text-muted)';
+          const deliveryForecastColor = proc?.delivery_forecast ? '#ea580c' : 'var(--text-muted)';
+          const finalizedColor = proc?.finalized_at ? '#16a34a' : 'var(--text-muted)';
+
+          const datesDialog = document.createElement('div');
+          datesDialog.className = 'modal-container open';
+          datesDialog.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1300; display:flex; align-items:center; justify-content:center;';
+          datesDialog.innerHTML = `
+            <div class="modal" style="width:90%; max-width:500px; padding:24px; display:flex; flex-direction:column; gap:20px; background:#ffffff; border-radius:16px; border:1px solid var(--border); box-shadow:var(--shadow-lg);">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1.1rem; color:var(--text-primary); display:flex; align-items:center; gap:8px;">
+                  📅 Cronograma de Datas
+                </h3>
+                <button id="closeDatesModalBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);">✕</button>
+              </div>
+
+              <!-- Identificação do Chamado -->
+              <div style="background:var(--bg-app); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                <span style="font-size:0.8rem; font-weight:700; color:var(--primary);">Chamado Nº ${ticketNumber}</span>
+                <span style="font-size:0.88rem; font-weight:600; color:var(--text-primary); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${ticketTitle}</span>
+              </div>
+
+              <!-- Lista de Datas -->
+              <div style="display:flex; flex-direction:column; gap:10px; font-size:0.88rem;">
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+                  <span style="color:var(--text-secondary); font-weight:600; display:flex; align-items:center; gap:6px;">
+                    🟢 Abertura do Chamado:
+                  </span>
+                  <strong style="color:var(--text-primary);">${formatDt(foundTicket.created_at)}</strong>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+                  <span style="color:var(--text-secondary); font-weight:600; display:flex; align-items:center; gap:6px;">
+                    ⏱️ Prazo Estipulado:
+                  </span>
+                  <strong style="color:${deadlineColor};">${formatDt(foundTicket.deadline)}</strong>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+                  <span style="color:var(--text-secondary); font-weight:600; display:flex; align-items:center; gap:6px;">
+                    🛒 Criação do Processo de Compra:
+                  </span>
+                  <strong style="color:${createdAtColor};">${formatDt(proc?.created_at)}</strong>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+                  <span style="color:var(--text-secondary); font-weight:600; display:flex; align-items:center; gap:6px;">
+                    📄 Emissão do Pedido (Aguard. Recebimento):
+                  </span>
+                  <strong style="color:${awaitingReceiptColor};">${formatDt(proc?.awaiting_receipt_at)}</strong>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+                  <span style="color:var(--text-secondary); font-weight:600; display:flex; align-items:center; gap:6px;">
+                    🚚 Previsão de Entrega (Fornecedor):
+                  </span>
+                  <strong style="color:${deliveryForecastColor};">${formatDt(proc?.delivery_forecast)}</strong>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+                  <span style="color:var(--text-secondary); font-weight:600; display:flex; align-items:center; gap:6px;">
+                    ✅ Recebimento Total / Finalização:
+                  </span>
+                  <strong style="color:${finalizedColor};">${formatDt(proc?.finalized_at)}</strong>
+                </div>
+
+              </div>
+
+              <div style="display:flex; justify-content:flex-end; margin-top:4px;">
+                <button id="closeDatesModalBtnBottom" class="btn btn-secondary" style="padding:8px 20px;">Fechar</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(datesDialog);
+
+          const closeDatesModal = () => datesDialog.remove();
+          datesDialog.querySelector('#closeDatesModalBtn')?.addEventListener('click', closeDatesModal);
+          datesDialog.querySelector('#closeDatesModalBtnBottom')?.addEventListener('click', closeDatesModal);
+        });
+
+        // Opção 1: Desconsiderar chamado no relatório (com confirmação e aviso de ação irreversível)
+        menu.querySelector('#actionIgnoreTicketBtn')?.addEventListener('click', (evt) => {
+          evt.stopPropagation();
+          menu.remove();
+
+          const ignoreDialog = document.createElement('div');
+          ignoreDialog.className = 'modal-container open';
+          ignoreDialog.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1300; display:flex; align-items:center; justify-content:center;';
+          ignoreDialog.innerHTML = `
+            <div class="modal" style="width:90%; max-width:460px; padding:24px; display:flex; flex-direction:column; gap:16px; background:#ffffff; border-radius:16px; border:1px solid var(--border); box-shadow:var(--shadow-lg);">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1.1rem; color:#dc2626; display:flex; align-items:center; gap:8px;">
+                  ⚠️ Confirmar Desconsideração
+                </h3>
+                <button id="closeIgnoreModalBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);">✕</button>
+              </div>
+
+              <!-- Identificação do Chamado -->
+              <div style="background:var(--bg-app); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                <span style="font-size:0.8rem; font-weight:700; color:var(--primary);">Chamado Nº ${ticketNumber}</span>
+                <span style="font-size:0.88rem; font-weight:600; color:var(--text-primary); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${ticketTitle}</span>
+              </div>
+
+              <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px 16px; font-size:0.85rem; color:#991b1b; display:flex; flex-direction:column; gap:6px;">
+                <strong>🚨 AVISO DE AÇÃO IRREVERSÍVEL:</strong>
+                <span>Ao desconsiderar este chamado, ele será permanentemente omitido das métricas e listagens dos relatórios de compras.</span>
+              </div>
+
+              <p style="margin:0; font-size:0.88rem; color:var(--text-secondary);">
+                Tem certeza de que deseja desconsiderar este chamado no relatório de compras?
+              </p>
+
+              <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                <button id="cancelIgnoreBtn" class="btn btn-secondary" style="padding:8px 16px;">Cancelar</button>
+                <button id="confirmIgnoreBtn" class="btn" style="background:#dc2626; color:white; font-weight:600; padding:8px 16px;">
+                  Sim, Desconsiderar
+                </button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(ignoreDialog);
+
+          const closeIgnoreModal = () => ignoreDialog.remove();
+          ignoreDialog.querySelector('#closeIgnoreModalBtn')?.addEventListener('click', closeIgnoreModal);
+          ignoreDialog.querySelector('#cancelIgnoreBtn')?.addEventListener('click', closeIgnoreModal);
+
+          ignoreDialog.querySelector('#confirmIgnoreBtn')?.addEventListener('click', async () => {
+            closeIgnoreModal();
+            try {
+              await toggleIgnoreInComprasReport(ticketId, true);
+              showToast('Chamado desconsiderado do relatório!', 'success');
+              await loadData();
+            } catch (err) {
+              console.error(err);
+              showToast('Erro ao desconsiderar chamado. Certifique-se de rodar a migração 040.', 'error');
+            }
+          });
+        });
+
+        // Opção 2: Relacionar ou Desmarcar como Matéria-Prima (com confirmação reversível)
+        menu.querySelector('#actionToggleRawMaterialBtn')?.addEventListener('click', (evt) => {
+          evt.stopPropagation();
+          menu.remove();
+
+          const rawDialog = document.createElement('div');
+          rawDialog.className = 'modal-container open';
+          rawDialog.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:1300; display:flex; align-items:center; justify-content:center;';
+          rawDialog.innerHTML = `
+            <div class="modal" style="width:90%; max-width:460px; padding:24px; display:flex; flex-direction:column; gap:16px; background:#ffffff; border-radius:16px; border:1px solid var(--border); box-shadow:var(--shadow-lg);">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:1.1rem; color:#d97706; display:flex; align-items:center; gap:8px;">
+                  📦 Confirmar Matéria-Prima
+                </h3>
+                <button id="closeRawModalBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);">✕</button>
+              </div>
+
+              <!-- Identificação do Chamado -->
+              <div style="background:var(--bg-app); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                <span style="font-size:0.8rem; font-weight:700; color:var(--primary);">Chamado Nº ${ticketNumber}</span>
+                <span style="font-size:0.88rem; font-weight:600; color:var(--text-primary); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${ticketTitle}</span>
+              </div>
+
+              <div style="background:#fffbeb; border:1px solid #fef3c7; border-radius:8px; padding:12px 16px; font-size:0.85rem; color:#b45309; display:flex; flex-direction:column; gap:4px;">
+                <strong>ℹ️ AÇÃO REVERSÍVEL:</strong>
+                <span>Esta ação pode ser alterada a qualquer momento através deste mesmo menu.</span>
+              </div>
+
+              <p style="margin:0; font-size:0.88rem; color:var(--text-secondary);">
+                Deseja ${isRaw ? '<strong>desmarcar</strong> este chamado como Matéria-Prima' : '<strong>relacionar</strong> este chamado como Matéria-Prima'}?
+              </p>
+
+              <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+                <button id="cancelRawBtn" class="btn btn-secondary" style="padding:8px 16px;">Cancelar</button>
+                <button id="confirmRawBtn" class="btn" style="background:#d97706; color:white; font-weight:600; padding:8px 16px;">
+                  ${isRaw ? 'Sim, Desmarcar' : 'Sim, Relacionar'}
+                </button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(rawDialog);
+
+          const closeRawModal = () => rawDialog.remove();
+          rawDialog.querySelector('#closeRawModalBtn')?.addEventListener('click', closeRawModal);
+          rawDialog.querySelector('#cancelRawBtn')?.addEventListener('click', closeRawModal);
+
+          rawDialog.querySelector('#confirmRawBtn')?.addEventListener('click', async () => {
+            closeRawModal();
+            try {
+              if (!processId) {
+                await createPurchaseProcess(ticketId);
+                const updatedProcesses = await fetchPurchaseProcesses();
+                const newProc = updatedProcesses.find(p => p.ticket_id === ticketId);
+                if (newProc) {
+                  await updatePurchaseProcess(newProc.id, { is_raw_material: true });
+                }
+              } else {
+                await updatePurchaseProcess(processId, { is_raw_material: !isRaw });
+              }
+
+              showToast(isRaw ? 'Matéria-Prima desmarcada!' : 'Relacionado como Matéria-Prima com sucesso!', 'success');
+              await loadData();
+            } catch (err) {
+              console.error(err);
+              showToast('Erro ao atualizar marcação de Matéria-Prima.', 'error');
+            }
+          });
+        });
+
+        return;
+      }
+
       const card = e.target.closest('.kanban-card');
       if (card) {
         const processId = card.getAttribute('data-id');
@@ -796,20 +1364,20 @@ export async function renderPurchaseProcesses(container, queryString) {
         if (found) openStatusModal(found);
         return;
       }
-      const row = e.target.closest('.clickable-row');
-      if (row) {
-        const processId = row.getAttribute('data-id');
-        const found = processes.find(p => p.id === processId);
-        if (found) openStatusModal(found);
-      }
     });
 
     viewContainer?.addEventListener('change', (e) => {
       if (e.target.id === 'reportStartDateInput') {
         reportStartDate = e.target.value;
+        reportCurrentPage = 1;
         renderReport();
       } else if (e.target.id === 'reportEndDateInput') {
         reportEndDate = e.target.value;
+        reportCurrentPage = 1;
+        renderReport();
+      } else if (e.target.id === 'reportRawMaterialSelect') {
+        reportRawMaterialFilter = e.target.value;
+        reportCurrentPage = 1;
         renderReport();
       }
     });
@@ -1018,6 +1586,14 @@ export async function renderPurchaseProcesses(container, queryString) {
                 <label style="display:block; font-size:0.85rem; font-weight:700; color:var(--text-secondary); margin-bottom:6px;">Previsão de entrega</label>
                 <input type="date" id="modalDeliveryForecastInput" class="input" value="${process.delivery_forecast || ''}" style="background:var(--bg-app);" />
               </div>
+            </div>
+
+            <!-- OPÇÃO MATÉRIA-PRIMA -->
+            <div style="background:var(--bg-app); padding:12px 16px; border-radius:10px; border:1px solid var(--border); display:flex; align-items:center; gap:12px;">
+              <input type="checkbox" id="modalIsRawMaterialCheckbox" ${process.is_raw_material ? 'checked' : ''} style="width:18px; height:18px; cursor:pointer; accent-color:var(--primary);" />
+              <label for="modalIsRawMaterialCheckbox" style="font-size:0.9rem; font-weight:700; color:var(--text-primary); cursor:pointer; margin:0; display:flex; align-items:center; gap:6px;">
+                📦 Este processo é referente a <u>Matéria-Prima</u>
+              </label>
             </div>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -1388,7 +1964,8 @@ export async function renderPurchaseProcesses(container, queryString) {
               // 4. Encerrar processo de compra por último (status: finalized, receipt_status: total)
               await updatePurchaseProcess(process.id, {
                 status: 'finalized',
-                receipt_status: 'total'
+                receipt_status: 'total',
+                finalized_at: process.finalized_at || new Date().toISOString()
               });
 
               showToast('Recebimento Total registrado e processo encerrado com sucesso!', 'success');
@@ -1465,6 +2042,7 @@ export async function renderPurchaseProcesses(container, queryString) {
 
           const newBlockReason = document.getElementById('modalBlockReasonSelect').value;
           const newReceiptStatus = process.receipt_status;
+          const newIsRawMaterial = document.getElementById('modalIsRawMaterialCheckbox')?.checked || false;
 
           const updateData = {
             status: newStatus,
@@ -1474,8 +2052,16 @@ export async function renderPurchaseProcesses(container, queryString) {
             purchase_amount: newPurchaseAmount,
             delivery_forecast: newDeliveryForecast,
             block_reason: newBlockReason,
-            receipt_status: newReceiptStatus
+            receipt_status: newReceiptStatus,
+            is_raw_material: newIsRawMaterial
           };
+
+          if (newStatus === 'awaiting_receipt' && !process.awaiting_receipt_at) {
+            updateData.awaiting_receipt_at = new Date().toISOString();
+          }
+          if (newStatus === 'finalized' && !process.finalized_at) {
+            updateData.finalized_at = new Date().toISOString();
+          }
 
           // Atualizar processo de compra no Supabase
           await updatePurchaseProcess(process.id, updateData);
